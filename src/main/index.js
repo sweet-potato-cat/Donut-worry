@@ -57,7 +57,7 @@ function registerShortcuts() {
   // Option(Alt)+Space 두 번 누르면 Main 도넛 토글
   globalShortcut.register('Alt+Space', () => {
     const now = Date.now()
-    if (now - lastOptionPressTime < 700) {
+    if (now - lastOptionPressTime < 1000) {
       toggleMainDonut()
       lastOptionPressTime = 0
     } else {

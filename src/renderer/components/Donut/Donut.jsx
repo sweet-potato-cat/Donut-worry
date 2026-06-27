@@ -1,10 +1,11 @@
 import { useState } from 'react'
+import { BiBookAlt, BiSolidPencil, BiSolidCaretRightCircle, BiSolidMegaphone } from 'react-icons/bi'
 
 const SECTORS = [
-  { index: 0, label: '강의자료', icon: '📚' },
-  { index: 1, label: '과제',    icon: '📝' },
-  { index: 2, label: '동영상',  icon: '🎬' },
-  { index: 3, label: '공지',    icon: '📢' },
+  { index: 0, label: '강의자료', icon: BiBookAlt },
+  { index: 1, label: '과제',    icon: BiSolidPencil },
+  { index: 2, label: '동영상',  icon: BiSolidCaretRightCircle },
+  { index: 3, label: '공지',    icon: BiSolidMegaphone },
 ]
 
 const SIZE = 400
@@ -56,6 +57,8 @@ export default function Donut({ onSelect }) {
         const isHovered = hoveredIndex === sector.index
         const path = getSectorPath(CX, CY, INNER_R, OUTER_R, startAngle, endAngle)
         const center = getSectorCenter(CX, CY, INNER_R, OUTER_R, startAngle, endAngle)
+        const Icon = sector.icon
+        const iconSize = isHovered ? 42 : 36
 
         return (
           <g
@@ -70,16 +73,13 @@ export default function Donut({ onSelect }) {
               fill={isHovered ? HOVER_COLOR : BASE_COLOR}
               style={{ transition: 'fill 0.15s ease' }}
             />
-            <text
-              x={center.x}
-              y={center.y}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize={isHovered ? 42 : 36}
-              style={{ transition: 'font-size 0.15s ease', userSelect: 'none' }}
-            >
-              {sector.icon}
-            </text>
+            <Icon
+              x={center.x - iconSize / 2}
+              y={center.y - iconSize / 2}
+              size={iconSize}
+              color="#fff"
+              style={{ transition: 'width 0.15s ease, height 0.15s ease', userSelect: 'none' }}
+            />
           </g>
         )
       })}

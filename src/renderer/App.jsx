@@ -11,7 +11,7 @@ export default function App() {
   useEffect(() => {
     const handler = (_e, { index }) => setSelectedIndex(index)
     window.electron?.ipcRenderer.on('donut:select', handler)
-    return () => window.electron?.ipcRenderer.off('donut:select', handler)
+    return () => window.electron?.ipcRenderer.removeListener('donut:select', handler)
   }, [])
 
   return (
@@ -23,7 +23,7 @@ export default function App() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'transparent',
+        background: '#f5f5f5',
         WebkitAppRegion: 'drag', // 창 드래그 이동
       }}
     >

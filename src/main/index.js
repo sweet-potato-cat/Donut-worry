@@ -1,20 +1,25 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, globalShortcut } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+import { registerIpcHandlers } from './ipc.js'
+
+let mainWindow = null
 
 function createWindow() {
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+  mainWindow = new BrowserWindow({
+    width: 800,
+    height: 800,
     show: false,
+    frame: false,           // 창 테두리 제거
+    transparent: true,      // 투명 창
+    alwaysOnTop: true,      // 항상 위에 표시
+    skipTaskbar: true,      // 작업표시줄 숨김
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    resizable: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
-    }
+      sandbox: false,
+    },
   })
 
   mainWindow.on('ready-to-show', () => {
@@ -26,8 +31,6 @@ function createWindow() {
     return { action: 'deny' }
   })
 
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -35,40 +38,67 @@ function createWindow() {
   }
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+function registerShortcuts() {
+  // option × 2 → Main Donut 표시/숨김
+  // Mac: Alt, Windows: Alt
+  let lastAltTime = 0
+  globalShortcut.register('Alt', () => {
+    const now = Date.now()
+    if (now - lastAltTime < 400) {
+      // 400ms 안에 두 번 누르면 토글
+      if (mainWindow.isVisible()) {
+        mainWindow.hide()
+      } else {
+        mainWindow.show()
+      }
+      lastAltTime = 0
+    } else {
+      lastAltTime = now
+    }
+  })
 
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+  // cmd+1 ~ cmd+4 → Sub Donut (Mac: Cmd, Windows: Ctrl)
+  const modifier = process.platform === 'darwin' ? 'Cmd' : 'Ctrl'
+
+  globalShortcut.register(`${modifier}+1`, () => {
+    mainWindow?.webContents.send('donut:select', { index: 0 }) // 강의자료
+  })
+  globalShortcut.register(`${modifier}+2`, () => {
+    mainWindow?.webContents.send('donut:select', { index: 1 }) // 과제
+  })
+  globalShortcut.register(`${modifier}+3`, () => {
+    mainWindow?.webContents.send('donut:select', { index: 2 }) // 미시청 동영상
+  })
+  globalShortcut.register(`${modifier}+4`, () => {
+    mainWindow?.webContents.send('donut:select', { index: 3 }) // 공지 요약
+  })
+}
+
+app.whenReady().then(() => {
+  electronApp.setAppUserModelId('com.donut-worry')
+
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
+  // IPC 핸들러 등록 (core.js로 라우팅)
+  registerIpcHandlers()
 
   createWindow()
+  registerShortcuts()
 
-  app.on('activate', function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
+  app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
+// 앱 종료 시 단축키 해제
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
+})

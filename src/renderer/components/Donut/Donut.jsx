@@ -12,7 +12,7 @@ const SIZE = 400
 const CX = SIZE / 2
 const CY = SIZE / 2
 const OUTER_R = 185
-const INNER_R = 75
+const INNER_R = 52.5
 const BASE_COLOR = '#fe748a'
 const HOVER_COLOR = '#ff99b0'
 

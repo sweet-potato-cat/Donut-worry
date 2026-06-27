@@ -22,10 +22,6 @@ function createWindow() {
     },
   })
 
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
-  })
-
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
@@ -38,21 +34,41 @@ function createWindow() {
   }
 }
 
+let lastOptionPressTime = 0
+
+function toggleMainDonut() {
+  if (!mainWindow) return
+  if (mainWindow.isVisible()) {
+    mainWindow.hide()
+  } else {
+    mainWindow.show()
+    mainWindow.webContents.send('main:show')
+  }
+}
+
+function openSubDonut(index) {
+  if (!mainWindow?.isVisible()) return
+  mainWindow.webContents.send('subdonut:open', { index })
+}
+
 function registerShortcuts() {
   const modifier = process.platform === 'darwin' ? 'Cmd' : 'Ctrl'
 
-  globalShortcut.register(`${modifier}+1`, () => {
-    mainWindow?.webContents.send('donut:select', { index: 0 })
+  // Option(Alt)+Space 두 번 누르면 Main 도넛 토글
+  globalShortcut.register('Alt+Space', () => {
+    const now = Date.now()
+    if (now - lastOptionPressTime < 700) {
+      toggleMainDonut()
+      lastOptionPressTime = 0
+    } else {
+      lastOptionPressTime = now
+    }
   })
-  globalShortcut.register(`${modifier}+2`, () => {
-    mainWindow?.webContents.send('donut:select', { index: 1 })
-  })
-  globalShortcut.register(`${modifier}+3`, () => {
-    mainWindow?.webContents.send('donut:select', { index: 2 })
-  })
-  globalShortcut.register(`${modifier}+4`, () => {
-    mainWindow?.webContents.send('donut:select', { index: 3 })
-  })
+
+  // Main 도넛이 열려있을 때 cmd+1~3 → Sub 도넛 (강의자료/과제/동영상)
+  globalShortcut.register(`${modifier}+1`, () => openSubDonut(0))
+  globalShortcut.register(`${modifier}+2`, () => openSubDonut(1))
+  globalShortcut.register(`${modifier}+3`, () => openSubDonut(2))
 }
 
 app.whenReady().then(() => {

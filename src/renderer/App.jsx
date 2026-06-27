@@ -1,18 +1,44 @@
 import { useState, useEffect } from 'react'
 import Donut from './components/Donut/Donut'
+import LectureSubDonut from './components/SubDonut/LectureSubDonut'
+import AssignmentSubDonut from './components/SubDonut/AssignmentSubDonut'
+import VideoSubDonut from './components/SubDonut/VideoSubDonut'
 import './assets/main.css'
 
 const VIEW_LABELS = ['강의자료', '과제', '동영상', '공지']
+const SUB_DONUTS = [LectureSubDonut, AssignmentSubDonut, VideoSubDonut]
 
 export default function App() {
   const [selectedIndex, setSelectedIndex] = useState(null)
+  const [activeSubDonut, setActiveSubDonut] = useState(null) // null | 0(강의자료) | 1(과제) | 2(동영상)
 
-  // 단축키 (cmd+1~4) 수신
+  // Main 도넛이 다시 열릴 때 상태 초기화
   useEffect(() => {
-    const handler = (_e, { index }) => setSelectedIndex(index)
-    window.electron?.ipcRenderer.on('donut:select', handler)
-    return () => window.electron?.ipcRenderer.removeListener('donut:select', handler)
+    const handler = () => {
+      setSelectedIndex(null)
+      setActiveSubDonut(null)
+    }
+    window.electron?.ipcRenderer.on('main:show', handler)
+    return () => window.electron?.ipcRenderer.removeListener('main:show', handler)
   }, [])
+
+  // cmd+1~3 → Sub 도넛 열기
+  useEffect(() => {
+    const handler = (_e, { index }) => setActiveSubDonut(index)
+    window.electron?.ipcRenderer.on('subdonut:open', handler)
+    return () => window.electron?.ipcRenderer.removeListener('subdonut:open', handler)
+  }, [])
+
+  // Esc → Sub 도넛에서 Main 도넛으로 복귀
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape') setActiveSubDonut(null)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  const ActiveSubDonut = activeSubDonut !== null ? SUB_DONUTS[activeSubDonut] : null
 
   return (
     <div
@@ -27,10 +53,14 @@ export default function App() {
         WebkitAppRegion: 'drag', // 창 드래그 이동
       }}
     >
-      <Donut onSelect={setSelectedIndex} />
+      {ActiveSubDonut ? (
+        <ActiveSubDonut onSelect={() => {}} />
+      ) : (
+        <Donut onSelect={setSelectedIndex} />
+      )}
 
       {/* 선택된 섹터 표시 (추후 각 View 컴포넌트로 교체) */}
-      {selectedIndex !== null && (
+      {!ActiveSubDonut && selectedIndex !== null && (
         <div
           style={{
             marginTop: 16,

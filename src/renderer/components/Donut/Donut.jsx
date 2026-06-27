@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { BiBookAlt, BiSolidPencil, BiSolidCaretRightCircle, BiSolidMegaphone } from 'react-icons/bi'
+import { getSectorPath, getSectorCenter } from './donutMath'
 
 const SECTORS = [
   { index: 0, label: '강의자료', icon: BiBookAlt },
@@ -15,31 +16,6 @@ const OUTER_R = 185
 const INNER_R = 52.5
 const BASE_COLOR = '#fe748a'
 const HOVER_COLOR = '#ff99b0'
-
-function polarToXY(cx, cy, r, angleDeg) {
-  const rad = ((angleDeg - 90) * Math.PI) / 180
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }
-}
-
-function getSectorPath(cx, cy, innerR, outerR, startAngle, endAngle) {
-  const o1 = polarToXY(cx, cy, outerR, startAngle)
-  const o2 = polarToXY(cx, cy, outerR, endAngle)
-  const i1 = polarToXY(cx, cy, innerR, endAngle)
-  const i2 = polarToXY(cx, cy, innerR, startAngle)
-  return [
-    `M ${o1.x} ${o1.y}`,
-    `A ${outerR} ${outerR} 0 0 1 ${o2.x} ${o2.y}`,
-    `L ${i1.x} ${i1.y}`,
-    `A ${innerR} ${innerR} 0 0 0 ${i2.x} ${i2.y}`,
-    'Z',
-  ].join(' ')
-}
-
-function getSectorCenter(cx, cy, innerR, outerR, startAngle, endAngle) {
-  const midAngle = (startAngle + endAngle) / 2
-  const midR = (innerR + outerR) / 2
-  return polarToXY(cx, cy, midR, midAngle)
-}
 
 export default function Donut({ onSelect }) {
   const [hoveredIndex, setHoveredIndex] = useState(null)

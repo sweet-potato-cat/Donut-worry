@@ -28,6 +28,31 @@
 
 ---
 
+## 🛠️ 기술 스택 (Tech Stack)
+
+프로젝트의 경량화와 빠른 반응 속도, 그리고 안전한 로컬 데이터 관리를 위해 다음과 같은 기술 스택을 활용하여 개발되었습니다.
+
+### 💻 Technologies & Libraries
+
+<div id="badges">
+  <img src="https://img.shields.io/badge/Electron-47848F?style=for-the-badge&logo=electron&logoColor=white"/>
+  <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB"/>
+  <img src="https://img.shields.io/badge/Playwright-2EAD33?style=for-the-badge&logo=playwright&logoColor=white"/>
+  <img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white"/>
+</div>
+
+| 분류 | 기술 스택 | 선택 이유 (Rethinking) |
+| :--- | :--- | :--- |
+| **App Framework** | Electron + React | 웹 기술(HTML/CSS/JS)을 활용하여 독창적인 도넛 형태의 UI를 크로스플랫폼(Mac/Windows) 환경에서 유연하게 구현하기 위해 채택 |
+| **Scraper** | Playwright | e-Campus의 세션 유지 및 강의 자료/동영상 트래킹을 가장 안정적으로 자동화할 수 있는 강력한 브라우저 자동화 도구 |
+| **Local Database**| SQLite (`better-sqlite3`) | 별도의 서버 없이 유저의 컴퓨터 내에 학업 스케줄, 과제 데이터, 다운로드 이력을 가볍고 빠르게 저장·관리하기 위한 로컬 DB |
+| **AI Summarizer** | Anthropic Claude API (`claude-haiku-4-5`) | 공지사항 및 과제 정보를 빠르고 정확하게 핵심 3줄 요약하기 위해 가성비와 속도가 뛰어난 경량 LLM 모델 활용 |
+| **Global Shortcut**| Electron `globalShortcut` | 어떤 작업 중에도 `Option` 키 2회, `Cmd+1~4` 단축키를 눌렀을 때 백그라운드에서 즉시 도넛 UI를 팝업하기 위한 모듈 |
+| **Security** | `keytar` (OS 키체인) | 유저의 e-Campus 계정 자격 증명(ID/PW) 정보를 로컬에 평문으로 저장하지 않고, OS 보안 키체인(Keychain/Credential)에 안전하게 암호화 보관 |
+| **Build & Deploy** | `electron-builder` | 최종 사용자가 쉽게 다운로드하여 설치할 수 있도록 `.dmg` (Mac) 및 `.exe` (Windows) 설치 파일 빌드 자동화 |
+
+---
+
 ## 🎨 UI & 인터페이스 구조 (UX/UI Specification)
 
 ### 🔴 디자인 테마

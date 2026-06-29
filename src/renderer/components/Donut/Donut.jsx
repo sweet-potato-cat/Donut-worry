@@ -17,8 +17,13 @@ const INNER_R = 52.5
 const BASE_COLOR = '#fe748a'
 const HOVER_COLOR = '#ff99b0'
 
-export default function Donut({ onSelect }) {
+export default function Donut({ onHoverChange }) {
   const [hoveredIndex, setHoveredIndex] = useState(null)
+
+  const handleHover = (index) => {
+    setHoveredIndex(index)
+    onHoverChange?.(index)
+  }
 
   return (
     <svg
@@ -39,10 +44,8 @@ export default function Donut({ onSelect }) {
         return (
           <g
             key={sector.index}
-            onMouseEnter={() => setHoveredIndex(sector.index)}
-            onMouseLeave={() => setHoveredIndex(null)}
-            onClick={() => onSelect?.(sector.index)}
-            style={{ cursor: 'pointer' }}
+            onMouseEnter={() => handleHover(sector.index)}
+            onMouseLeave={() => handleHover(null)}
           >
             <path
               d={path}

@@ -5,10 +5,12 @@ import { registerIpcHandlers } from './ipc.js'
 
 let mainWindow = null
 
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 500,
-    height: 500,
+function createWindow() { 
+  // Hello
+  // Create the browser window.
+  const mainWindow = new BrowserWindow({
+    width: 900,
+    height: 670,
     show: false,
     frame: true,
     transparent: false,

@@ -1,7 +1,9 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, globalShortcut } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+import { registerIpcHandlers } from './ipc.js'
+
+let mainWindow = null
 
 function createWindow() { 
   // Hello
@@ -10,16 +12,16 @@ function createWindow() {
     width: 900,
     height: 670,
     show: false,
+    frame: true,
+    transparent: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    resizable: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
-    }
-  })
-
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+      sandbox: false,
+    },
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -27,8 +29,6 @@ function createWindow() {
     return { action: 'deny' }
   })
 
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -36,40 +36,65 @@ function createWindow() {
   }
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+let lastOptionPressTime = 0
 
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+function toggleMainDonut() {
+  if (!mainWindow) return
+  if (mainWindow.isVisible()) {
+    mainWindow.hide()
+  } else {
+    mainWindow.show()
+    mainWindow.webContents.send('main:show')
+  }
+}
+
+function openSubDonut(index) {
+  if (!mainWindow?.isVisible()) return
+  mainWindow.webContents.send('subdonut:open', { index })
+}
+
+function registerShortcuts() {
+  const modifier = process.platform === 'darwin' ? 'Cmd' : 'Ctrl'
+
+  // Option(Alt)+Space 두 번 누르면 Main 도넛 토글
+  globalShortcut.register('Alt+Space', () => {
+    const now = Date.now()
+    if (now - lastOptionPressTime < 1000) {
+      toggleMainDonut()
+      lastOptionPressTime = 0
+    } else {
+      lastOptionPressTime = now
+    }
+  })
+
+  // Main 도넛이 열려있을 때 cmd+1~3 → Sub 도넛 (강의자료/과제/동영상)
+  globalShortcut.register(`${modifier}+1`, () => openSubDonut(0))
+  globalShortcut.register(`${modifier}+2`, () => openSubDonut(1))
+  globalShortcut.register(`${modifier}+3`, () => openSubDonut(2))
+}
+
+app.whenReady().then(() => {
+  electronApp.setAppUserModelId('com.donut-worry')
+
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
-
+  registerIpcHandlers()
   createWindow()
+  registerShortcuts()
 
-  app.on('activate', function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
+  app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
+})

@@ -15,8 +15,8 @@ function getPageSize() {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: DONUT_SIZE,
-    height: DONUT_SIZE,
+    width: 500,
+    height: 500,
     show: false,
     frame: true,
     transparent: false,

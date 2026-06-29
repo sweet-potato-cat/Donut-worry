@@ -10,7 +10,7 @@ const DONUT_SIZE = 500
 
 function getPageSize() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize
-  return { width: Math.round(width * 0.3), height: Math.round(height * 0.3) }
+  return { width: Math.round(width * 0.7), height: Math.round(height * 0.7) }
 }
 
 function createWindow() {
@@ -18,8 +18,10 @@ function createWindow() {
     width: 500,
     height: 500,
     show: false,
-    frame: true,
-    transparent: false,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    hasShadow: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     autoHideMenuBar: true,
@@ -48,6 +50,7 @@ let donutHeld = false
 
 function showDonutWindow() {
   if (!mainWindow) return
+  activeSubDonutIndex = null
   mainWindow.setSize(DONUT_SIZE, DONUT_SIZE)
   mainWindow.center()
   mainWindow.show()
@@ -56,11 +59,25 @@ function showDonutWindow() {
 
 function hideDonutWindow() {
   if (!mainWindow) return
+  activeSubDonutIndex = null
   mainWindow.hide()
 }
 
+let activeSubDonutIndex = null
+
 function openSubDonut(index) {
-  if (!mainWindow?.isVisible()) return
+  if (!mainWindow) return
+
+  if (mainWindow.isVisible() && activeSubDonutIndex === index) {
+    activeSubDonutIndex = null
+    hideDonutWindow()
+    return
+  }
+
+  activeSubDonutIndex = index
+  mainWindow.setSize(DONUT_SIZE, DONUT_SIZE)
+  mainWindow.center()
+  mainWindow.show()
   mainWindow.webContents.send('subdonut:open', { index })
 }
 

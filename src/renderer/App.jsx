@@ -28,6 +28,13 @@ export default function App() {
     return () => window.electron?.ipcRenderer.removeListener('main:show', handler)
   }, [])
 
+  // cmd+1~3 → Sub 도넛 열기
+  useEffect(() => {
+    const handler = (_e, { index }) => setActiveSubDonut(index)
+    window.electron?.ipcRenderer.on('subdonut:open', handler)
+    return () => window.electron?.ipcRenderer.removeListener('subdonut:open', handler)
+  }, [])
+
   // Option+Space를 떼는 순간 → 마우스가 올라가 있던 섹터로 확정 이동
   useEffect(() => {
     const handler = () => {
@@ -52,6 +59,7 @@ export default function App() {
         window.electron?.ipcRenderer.send('window:show-donut')
       } else if (activeSubDonut !== null) {
         setActiveSubDonut(null)
+        window.electron?.ipcRenderer.send('window:hide')
       }
     }
     window.addEventListener('keydown', handler)
@@ -69,7 +77,7 @@ export default function App() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#f5f5f5',
+        background: page !== null ? '#f5f5f5' : 'transparent',
         WebkitAppRegion: 'drag' // 창 드래그 이동
       }}
     >
@@ -89,9 +97,13 @@ export default function App() {
           <div style={{ fontSize: 12, color: '#999' }}>Esc로 도넛으로 돌아가기</div>
         </div>
       ) : ActiveSubDonut ? (
-        <ActiveSubDonut onSelect={() => {}} />
+        <div style={{ WebkitAppRegion: 'no-drag' }}>
+          <ActiveSubDonut onSelect={() => {}} />
+        </div>
       ) : (
-        <Donut onHoverChange={handleHoverChange} />
+        <div style={{ WebkitAppRegion: 'no-drag' }}>
+          <Donut onHoverChange={handleHoverChange} />
+        </div>
       )}
     </div>
   )

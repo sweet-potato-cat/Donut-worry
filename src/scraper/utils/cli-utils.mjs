@@ -9,6 +9,8 @@ async function printUsage() {
   console.log('  --debug  Save page and frame HTML snapshots under scraper-output/debug')
   console.log('  --course=<name>  Only scan/download courses whose names include <name>')
   console.log('  --deep  Use slower fallback clicks for hard-to-open external tool materials')
+  console.log('  --assignments-only  Collect assignments without scanning weekly-learning pages')
+  console.log('  --notices-only  Collect notices without scanning weekly-learning pages')
 }
 
 function hasCliFlag(name) {

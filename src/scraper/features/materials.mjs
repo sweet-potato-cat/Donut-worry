@@ -140,6 +140,22 @@ async function collectLinksFromFrame(frame, sourceUrl, shouldCollectDebugHtml) {
           const iconClasses = icon?.className?.toString().split(/\s+/) ?? []
           const itemType = iconClasses.find((className) => !ignoredIconClasses.has(className)) ?? ''
           const href = titleLink?.getAttribute('href') ?? ''
+          const progressElement = item.querySelector(
+            '[class*="progress"], [class*="percentage"], [class*="percent"], [class*="rate"]'
+          )
+          const progressText = progressElement?.textContent.replace(/\s+/g, ' ').trim() ?? ''
+          const progressAttribute =
+            progressElement?.getAttribute('aria-valuenow') ??
+            progressElement?.getAttribute('data-progress') ??
+            progressElement?.getAttribute('data-percentage') ??
+            ''
+          const progressAttributeNumber = progressAttribute === '' ? NaN : Number(progressAttribute)
+          const progressMatch = progressText.match(/(\d+(?:\.\d+)?)\s*%/)
+          const progressPercent = Number.isFinite(progressAttributeNumber)
+            ? progressAttributeNumber
+            : progressMatch
+              ? Number(progressMatch[1])
+              : null
 
           return {
             sourceUrl: currentSourceUrl,
@@ -163,6 +179,8 @@ async function collectLinksFromFrame(frame, sourceUrl, shouldCollectDebugHtml) {
                 .querySelector('.xnmb-module_item-meta_data-attendance_status')
                 ?.textContent.replace(/\s+/g, ' ')
                 .trim() ?? '',
+            progressText,
+            progressPercent,
             periodText:
               item
                 .querySelector(

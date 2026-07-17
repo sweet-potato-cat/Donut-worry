@@ -114,4 +114,131 @@ async function collectCanvasModuleItemsApi(page, weeklyMaterialItems) {
   )
 }
 
-export { collectCanvasCoursesApi, collectCanvasModuleItemsApi }
+async function collectCanvasAssignmentsApi(page, courses) {
+  const courseSummaries = courses.map((course) => ({
+    courseId: course.courseId,
+    courseName: course.courseName,
+    courseCode: course.courseCode ?? ''
+  }))
+
+  return page.evaluate(async (currentCourses) => {
+    async function fetchAllPages(firstUrl) {
+      const results = []
+      let nextUrl = firstUrl
+
+      while (nextUrl) {
+        const response = await fetch(nextUrl, {
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json' }
+        })
+
+        if (!response.ok) {
+          break
+        }
+
+        results.push(...(await response.json()))
+
+        const linkHeader = response.headers.get('link') ?? ''
+        const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/)
+        nextUrl = nextMatch?.[1] ?? null
+      }
+
+      return results
+    }
+
+    const results = []
+
+    for (const course of currentCourses) {
+      const assignments = await fetchAllPages(
+        `/api/v1/courses/${course.courseId}/assignments?include[]=submission&per_page=100`
+      )
+
+      results.push(
+        ...assignments.map((assignment) => ({
+          ...assignment,
+          courseId: course.courseId,
+          courseName: course.courseName,
+          courseCode: course.courseCode
+        }))
+      )
+    }
+
+    return results
+  }, courseSummaries)
+}
+
+async function collectCanvasAnnouncementsApi(page, courses) {
+  const courseSummaries = courses.map((course) => ({
+    courseId: course.courseId,
+    courseName: course.courseName,
+    courseCode: course.courseCode ?? ''
+  }))
+
+  return page.evaluate(async (currentCourses) => {
+    async function fetchAllPages(firstUrl) {
+      const results = []
+      let nextUrl = firstUrl
+
+      while (nextUrl) {
+        const response = await fetch(nextUrl, {
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json' }
+        })
+
+        if (!response.ok) {
+          break
+        }
+
+        results.push(...(await response.json()))
+
+        const linkHeader = response.headers.get('link') ?? ''
+        const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/)
+        nextUrl = nextMatch?.[1] ?? null
+      }
+
+      return results
+    }
+
+    const results = []
+
+    for (const course of currentCourses) {
+      const globalAnnouncements = await fetchAllPages(
+        `/api/v1/announcements?context_codes[]=course_${course.courseId}&per_page=100`
+      )
+      const courseAnnouncements = await fetchAllPages(
+        `/api/v1/courses/${course.courseId}/discussion_topics?only_announcements=true&per_page=100`
+      )
+      const seenAnnouncementIds = new Set()
+      const announcements = [...globalAnnouncements, ...courseAnnouncements].filter(
+        (announcement) => {
+          const key = String(announcement.id ?? announcement.html_url ?? announcement.title ?? '')
+
+          if (!key || seenAnnouncementIds.has(key)) {
+            return false
+          }
+
+          seenAnnouncementIds.add(key)
+          return true
+        }
+      )
+
+      results.push(
+        ...announcements.map((announcement) => ({
+          ...announcement,
+          courseId: course.courseId,
+          courseName: course.courseName,
+          courseCode: course.courseCode
+        }))
+      )
+    }
+
+    return results
+  }, courseSummaries)
+}
+
+export {
+  collectCanvasAnnouncementsApi,
+  collectCanvasAssignmentsApi,
+  collectCanvasCoursesApi,
+  collectCanvasModuleItemsApi
+}

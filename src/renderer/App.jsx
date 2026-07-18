@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import Donut from './components/Donut/Donut'
 import LecturePage from './components/LecturePage/LecturePage'
+import AssignmentPage from './components/AssignmentPage/AssignmentPage'
+import VideoPage from './components/VideoPage/VideoPage'
+import NoticePage from './components/NoticePage/NoticePage'
 import LectureSubDonut from './components/SubDonut/LectureSubDonut'
 import AssignmentSubDonut from './components/SubDonut/AssignmentSubDonut'
 import VideoSubDonut from './components/SubDonut/VideoSubDonut'
 import './assets/main.css'
 
-const VIEW_LABELS = ['강의자료', '과제', '동영상', '공지']
+const PAGES = [LecturePage, AssignmentPage, VideoPage, NoticePage]
 const SUB_DONUTS = [LectureSubDonut, AssignmentSubDonut, VideoSubDonut]
 
 export default function App() {
@@ -68,6 +71,7 @@ export default function App() {
   }, [page, activeSubDonut])
 
   const ActiveSubDonut = activeSubDonut !== null ? SUB_DONUTS[activeSubDonut] : null
+  const ActivePage = page !== null ? PAGES[page] : null
 
   return (
     <div
@@ -82,29 +86,10 @@ export default function App() {
         WebkitAppRegion: 'drag' // 창 드래그 이동
       }}
     >
-      {page !== null ? (
-        page === 0 ? (
-          <div style={{ width: '100%', height: '100%', WebkitAppRegion: 'no-drag' }}>
-            <LecturePage />
-          </div>
-        ) : (
-          <div
-            style={{
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 12
-            }}
-          >
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#fe748a' }}>
-              {VIEW_LABELS[page]}
-            </div>
-            <div style={{ fontSize: 12, color: '#999' }}>Esc로 도넛으로 돌아가기</div>
-          </div>
-        )
+      {ActivePage ? (
+        <div style={{ width: '100%', height: '100%', WebkitAppRegion: 'no-drag' }}>
+          <ActivePage />
+        </div>
       ) : ActiveSubDonut ? (
         <div style={{ WebkitAppRegion: 'no-drag' }}>
           <ActiveSubDonut onSelect={() => {}} />

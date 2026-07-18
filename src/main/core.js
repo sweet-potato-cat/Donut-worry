@@ -2,6 +2,9 @@ import * as scraper from './scraper.js'
 import * as storage from './storage.js'
 import * as ai from './ai.js'
 import * as courses from './courses.js'
+import * as assignments from './assignments.js'
+import * as videos from './videos.js'
+import * as notices from './notices.js'
 
 /**
  * core.js — Fan-in 중앙 라우터
@@ -62,6 +65,20 @@ const handlers = {
     return storage.markAssignmentComplete(id)
   },
 
+  // ── 다운로드된 과제 목록(scraper-output/assignments.json) ───
+  'assignment:listCourses': async () => {
+    return assignments.listAssignmentCourses()
+  },
+
+  'assignment:listByCourse': async ({ courseName }) => {
+    return assignments.listAssignmentsForCourse(courseName)
+  },
+
+  'assignment:open': async ({ url }) => {
+    await assignments.openAssignment(url)
+    return { success: true }
+  },
+
   // ── 동영상 ────────────────────────────────────────────
   'video:sync': async () => {
     const raw = await scraper.fetchVideos()
@@ -71,6 +88,20 @@ const handlers = {
 
   'video:getAll': async () => {
     return storage.getVideos()
+  },
+
+  // ── 다운로드된 동영상 목록(scraper-output/weekly-learning-videos.json) ─
+  'video:listCourses': async () => {
+    return videos.listVideoCourses()
+  },
+
+  'video:listByCourse': async ({ courseName }) => {
+    return videos.listVideosForCourse(courseName)
+  },
+
+  'video:open': async ({ url }) => {
+    await videos.openVideo(url)
+    return { success: true }
   },
 
   // ── 공지 ──────────────────────────────────────────────
@@ -87,6 +118,16 @@ const handlers = {
 
   'notice:read': async ({ id }) => {
     return storage.markNoticeRead(id)
+  },
+
+  // ── 다운로드된 공지 목록(scraper-output/notices.json) ───────
+  'notice:list': async () => {
+    return notices.listNotices()
+  },
+
+  'notice:open': async ({ url }) => {
+    await notices.openNotice(url)
+    return { success: true }
   },
 
   // ── 전체 동기화 ────────────────────────────────────────

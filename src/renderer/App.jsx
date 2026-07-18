@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import Donut from './components/Donut/Donut'
+import LecturePage from './components/LecturePage/LecturePage'
 import LectureSubDonut from './components/SubDonut/LectureSubDonut'
 import AssignmentSubDonut from './components/SubDonut/AssignmentSubDonut'
 import VideoSubDonut from './components/SubDonut/VideoSubDonut'
@@ -82,20 +83,28 @@ export default function App() {
       }}
     >
       {page !== null ? (
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 12
-          }}
-        >
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#fe748a' }}>{VIEW_LABELS[page]}</div>
-          <div style={{ fontSize: 12, color: '#999' }}>Esc로 도넛으로 돌아가기</div>
-        </div>
+        page === 0 ? (
+          <div style={{ width: '100%', height: '100%', WebkitAppRegion: 'no-drag' }}>
+            <LecturePage />
+          </div>
+        ) : (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 12
+            }}
+          >
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#fe748a' }}>
+              {VIEW_LABELS[page]}
+            </div>
+            <div style={{ fontSize: 12, color: '#999' }}>Esc로 도넛으로 돌아가기</div>
+          </div>
+        )
       ) : ActiveSubDonut ? (
         <div style={{ WebkitAppRegion: 'no-drag' }}>
           <ActiveSubDonut onSelect={() => {}} />

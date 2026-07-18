@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import { dashboardUrl, outputRoot } from './core/constants.mjs'
-import { getPlaywright, waitForCanvasLogin } from './core/browser.mjs'
+import { getPlaywright, waitForCanvasLogin, navigateAndCheckAuth } from './core/browser.mjs'
 import { collectCoursesFromDashboard } from './core/courses.mjs'
 import {
   collectLinksWithFallback,
@@ -15,20 +15,80 @@ import { collectVideoRecords } from './features/videos.mjs'
 import { getCliOption, hasCliFlag, printUsage } from './utils/cli-utils.mjs'
 import { uniqueBy } from './utils/file-utils.mjs'
 
-async function runLiveCollector() {
+// preferHeadless가 true면 창 없이 실행하되, 저장된 세션이 만료되어 로그인이
+// 필요한 경우에만 로그인용 브라우저 창을 자동으로 띄움
+async function launchAuthenticatedContext(preferHeadless) {
   const { chromium } = await getPlaywright()
   const userDataDir = path.resolve('.playwright-user-data')
-  const browserContext = await chromium.launchPersistentContext(userDataDir, {
-    headless: false
+
+  let browserContext = await chromium.launchPersistentContext(userDataDir, {
+    headless: preferHeadless
   })
-  const page = await browserContext.newPage()
+  let page = await browserContext.newPage()
+
+  if (!preferHeadless) {
+    console.log('Browser opened.')
+    console.log('If login is required, log in manually in the opened browser.')
+  }
+
+  if (await navigateAndCheckAuth(page, dashboardUrl)) {
+    return { browserContext, page }
+  }
+
+  if (preferHeadless) {
+    console.log('Session expired or not logged in. Opening a visible browser window for login.')
+    await browserContext.close()
+    browserContext = await chromium.launchPersistentContext(userDataDir, { headless: false })
+    page = await browserContext.newPage()
+  }
+
+  await waitForCanvasLogin(page, dashboardUrl)
+  return { browserContext, page }
+}
+
+const WEEKLY_SCAN_CONCURRENCY = 3
+
+// 과목별 주차학습 목록 스캔은 새 자료 여부를 확인하기 위해 매번 필요하지만,
+// 순차 대신 탭 여러 개를 동시에 열어 병렬로 처리해 소요 시간을 줄임
+async function collectAllWeeklyLinks(browserContext, courses) {
+  const results = new Array(courses.length)
+  let nextIndex = 0
+
+  async function worker() {
+    for (;;) {
+      const courseIndex = nextIndex
+      nextIndex += 1
+
+      if (courseIndex >= courses.length) return
+
+      const course = courses[courseIndex]
+      console.log(`Collecting weekly-learning links from ${course.courseName} (${course.courseId})`)
+
+      const page = await browserContext.newPage()
+
+      try {
+        results[courseIndex] = await collectLinksWithFallback(
+          page,
+          course.weeklyLearningUrl,
+          course
+        )
+      } finally {
+        await page.close().catch(() => {})
+      }
+    }
+  }
+
+  const workerCount = Math.min(WEEKLY_SCAN_CONCURRENCY, courses.length)
+  await Promise.all(Array.from({ length: workerCount }, () => worker()))
+
+  return results
+}
+
+async function runLiveCollector() {
+  const { browserContext, page } = await launchAuthenticatedContext(hasCliFlag('--headless'))
   const allLinks = []
   const allWeeklyItems = []
 
-  console.log('Browser opened.')
-  console.log('If login is required, log in manually in the opened browser.')
-
-  await waitForCanvasLogin(page, dashboardUrl)
   const courseFilter = getCliOption('--course')
   const courses = (await collectCoursesFromDashboard(page)).filter(
     (course) => !courseFilter || course.courseName.includes(courseFilter)
@@ -69,9 +129,9 @@ async function runLiveCollector() {
     return
   }
 
-  for (const course of courses) {
-    console.log(`Collecting weekly-learning links from ${course.courseName} (${course.courseId})`)
-    const result = await collectLinksWithFallback(page, course.weeklyLearningUrl, course)
+  const weeklyLinkResults = await collectAllWeeklyLinks(browserContext, courses)
+
+  for (const result of weeklyLinkResults) {
     allLinks.push(...result.materialLinks)
     allWeeklyItems.push(...result.weeklyItems)
   }

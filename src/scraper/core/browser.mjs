@@ -6,18 +6,22 @@ async function getPlaywright() {
   }
 }
 
-async function waitForCanvasLogin(page, targetUrl) {
+// 페이지를 targetUrl로 이동시키고 로그인 여부를 확인. SSO 리다이렉트가 domcontentloaded
+// 이후에도 이어질 수 있어 networkidle까지 기다린 뒤 판단해 오탐(false negative)을 줄임
+async function navigateAndCheckAuth(page, targetUrl) {
   await page.goto(targetUrl, { waitUntil: 'domcontentloaded' })
+  await page.waitForLoadState('networkidle').catch(() => {})
 
   const currentUrl = new URL(page.url())
-
-  if (
-    currentUrl.hostname === 'khcanvas.khu.ac.kr' &&
-    !currentUrl.pathname.includes('/login') &&
-    (await isCanvasApiAuthenticated(page))
-  ) {
-    return
+  if (currentUrl.hostname !== 'khcanvas.khu.ac.kr' || currentUrl.pathname.includes('/login')) {
+    return false
   }
+
+  return isCanvasApiAuthenticated(page)
+}
+
+async function waitForCanvasLogin(page, targetUrl) {
+  if (await navigateAndCheckAuth(page, targetUrl)) return
 
   console.log('Login page detected.')
   console.log('Please log in in the opened browser. Waiting up to 5 minutes...')
@@ -61,4 +65,4 @@ async function isCanvasApiAuthenticated(page) {
   }
 }
 
-export { getPlaywright, waitForCanvasLogin }
+export { getPlaywright, waitForCanvasLogin, navigateAndCheckAuth }

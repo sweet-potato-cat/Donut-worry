@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { uIOhook, UiohookKey } from 'uiohook-napi'
 import { registerIpcHandlers } from './ipc.js'
+import { stopSync } from './courses.js'
 
 let mainWindow = null
 
@@ -181,4 +182,5 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll()
   uIOhook.stop()
+  stopSync()
 })

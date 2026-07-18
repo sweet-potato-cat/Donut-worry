@@ -11,6 +11,11 @@ import { handle } from './core.js'
 const CHANNELS = [
   'lecture:sync',
   'lecture:getAll',
+  'course:list',
+  'course:listFiles',
+  'course:openFile',
+  'course:sync',
+  'course:syncStatus',
   'assignment:sync',
   'assignment:getAll',
   'assignment:complete',
@@ -19,7 +24,7 @@ const CHANNELS = [
   'notice:sync',
   'notice:getAll',
   'notice:read',
-  'sync:all',
+  'sync:all'
 ]
 
 export function registerIpcHandlers() {

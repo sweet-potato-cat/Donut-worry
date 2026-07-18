@@ -1,6 +1,7 @@
 import * as scraper from './scraper.js'
 import * as storage from './storage.js'
 import * as ai from './ai.js'
+import * as courses from './courses.js'
 
 /**
  * core.js — Fan-in 중앙 라우터
@@ -21,6 +22,28 @@ const handlers = {
 
   'lecture:getAll': async () => {
     return storage.getLectures()
+  },
+
+  // ── 다운로드된 강의자료 폴더(scraper-output/courses) ───────
+  'course:list': async () => {
+    return courses.listCourses()
+  },
+
+  'course:listFiles': async ({ courseName }) => {
+    return courses.listCourseFiles(courseName)
+  },
+
+  'course:openFile': async ({ filePath }) => {
+    await courses.openCourseFile(filePath)
+    return { success: true }
+  },
+
+  'course:sync': async () => {
+    return courses.startSync()
+  },
+
+  'course:syncStatus': async () => {
+    return courses.getSyncState()
   },
 
   // ── 과제 ──────────────────────────────────────────────
@@ -72,10 +95,10 @@ const handlers = {
       handlers['lecture:sync'](),
       handlers['assignment:sync'](),
       handlers['video:sync'](),
-      handlers['notice:sync'](),
+      handlers['notice:sync']()
     ])
     return { lectures, assignments, videos, notices }
-  },
+  }
 }
 
 /**

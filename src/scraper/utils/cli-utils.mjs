@@ -6,6 +6,9 @@ async function printUsage() {
   console.log('  npm.cmd run scrape:download  Scan and download materials')
   console.log('')
   console.log('Options:')
+  console.log(
+    '  --headless  Run without a visible browser window (opens one automatically if login is needed)'
+  )
   console.log('  --debug  Save page and frame HTML snapshots under scraper-output/debug')
   console.log('  --course=<name>  Only scan/download courses whose names include <name>')
   console.log('  --deep  Use slower fallback clicks for hard-to-open external tool materials')

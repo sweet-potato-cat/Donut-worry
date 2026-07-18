@@ -8,6 +8,9 @@
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
+    "scrape:sandbox": "node src/scraper/ecampus-sandbox.mjs",
+    "scrape:live": "node src/scraper/ecampus-sandbox.mjs --live",
+    "scrape:download": "node src/scraper/ecampus-sandbox.mjs --live --download",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -33,6 +36,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
+    "playwright": "^1.61.1",
     "prettier": "^3.7.4",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",

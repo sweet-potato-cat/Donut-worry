@@ -22,3 +22,17 @@ export function getSectorCenter(cx, cy, innerR, outerR, startAngle, endAngle) {
   const midR = (innerR + outerR) / 2
   return polarToXY(cx, cy, midR, midAngle)
 }
+
+// 주어진 좌표(px, py)가 어느 섹터 위에 있는지 반환 (도넛 바깥/구멍 안이면 null)
+export function getSectorIndexAtPoint(px, py, cx, cy, innerR, outerR, sectorCount) {
+  const dx = px - cx
+  const dy = py - cy
+  const dist = Math.sqrt(dx * dx + dy * dy)
+  if (dist < innerR || dist > outerR) return null
+
+  let angle = (Math.atan2(dy, dx) * 180) / Math.PI + 90
+  angle = ((angle % 360) + 360) % 360
+
+  const sectorSize = 360 / sectorCount
+  return Math.floor(angle / sectorSize)
+}

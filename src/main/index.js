@@ -48,13 +48,22 @@ let altDown = false
 let spaceDown = false
 let donutHeld = false
 
+// 창 재배치 직후 OS 커서 위치를 창 기준 좌표로 변환
+// (도넛을 다시 그릴 때 마우스가 이미 섹터 위에 있어도 호버를 즉시 반영하기 위함)
+function getCursorPointInWindow() {
+  if (!mainWindow) return null
+  const { x, y } = screen.getCursorScreenPoint()
+  const bounds = mainWindow.getBounds()
+  return { x: x - bounds.x, y: y - bounds.y }
+}
+
 function showDonutWindow() {
   if (!mainWindow) return
   activeSubDonutIndex = null
   mainWindow.setSize(DONUT_SIZE, DONUT_SIZE)
   mainWindow.center()
   mainWindow.show()
-  mainWindow.webContents.send('main:show')
+  mainWindow.webContents.send('main:show', getCursorPointInWindow())
 }
 
 function hideDonutWindow() {
@@ -125,12 +134,6 @@ function registerWindowIpc() {
     if (!mainWindow) return
     const { width, height } = getPageSize()
     mainWindow.setSize(width, height)
-    mainWindow.center()
-  })
-
-  ipcMain.on('window:show-donut', () => {
-    if (!mainWindow) return
-    mainWindow.setSize(DONUT_SIZE, DONUT_SIZE)
     mainWindow.center()
   })
 }

@@ -48,19 +48,37 @@ let altDown = false
 let spaceDown = false
 let donutHeld = false
 
+// 창 재배치 직후 OS 커서 위치를 창 기준 좌표로 변환
+// (도넛을 다시 그릴 때 마우스가 이미 섹터 위에 있어도 호버를 즉시 반영하기 위함)
+function getCursorPointInWindow() {
+  if (!mainWindow) return null
+  const { x, y } = screen.getCursorScreenPoint()
+  const bounds = mainWindow.getBounds()
+  return { x: x - bounds.x, y: y - bounds.y }
+}
+
 function showDonutWindow() {
   if (!mainWindow) return
   activeSubDonutIndex = null
   mainWindow.setSize(DONUT_SIZE, DONUT_SIZE)
   mainWindow.center()
   mainWindow.show()
-  mainWindow.webContents.send('main:show')
+  mainWindow.webContents.send('main:show', getCursorPointInWindow())
 }
 
 function hideDonutWindow() {
   if (!mainWindow) return
   activeSubDonutIndex = null
   mainWindow.hide()
+}
+
+function toggleDonutWindow() {
+  if (!mainWindow) return
+  if (mainWindow.isVisible()) {
+    hideDonutWindow()
+  } else {
+    showDonutWindow()
+  }
 }
 
 let activeSubDonutIndex = null
@@ -108,12 +126,19 @@ function registerHoldListener() {
 }
 
 function registerShortcuts() {
-  const modifier = process.platform === 'darwin' ? 'Cmd' : 'Ctrl'
-
-  // Main 도넛이 열려있을 때 cmd+1~3 → Sub 도넛 (강의자료/과제/동영상)
-  globalShortcut.register(`${modifier}+1`, () => openSubDonut(0))
-  globalShortcut.register(`${modifier}+2`, () => openSubDonut(1))
-  globalShortcut.register(`${modifier}+3`, () => openSubDonut(2))
+  if (process.platform === 'darwin') {
+    // Main 도넛이 열려있을 때 cmd+1~3 → Sub 도넛 (강의자료/과제/동영상)
+    globalShortcut.register('Cmd+1', () => openSubDonut(0))
+    globalShortcut.register('Cmd+2', () => openSubDonut(1))
+    globalShortcut.register('Cmd+3', () => openSubDonut(2))
+  } else {
+    // Windows: Alt+Space 홀드 감지가 시스템 예약 단축키와 충돌해 불안정하므로
+    // ctrl+alt+D(Main 도넛 토글), ctrl+alt+1~3(Sub 도넛)을 대신 사용
+    globalShortcut.register('Ctrl+Alt+D', () => toggleDonutWindow())
+    globalShortcut.register('Ctrl+Alt+1', () => openSubDonut(0))
+    globalShortcut.register('Ctrl+Alt+2', () => openSubDonut(1))
+    globalShortcut.register('Ctrl+Alt+3', () => openSubDonut(2))
+  }
 }
 
 function registerWindowIpc() {
@@ -125,12 +150,6 @@ function registerWindowIpc() {
     if (!mainWindow) return
     const { width, height } = getPageSize()
     mainWindow.setSize(width, height)
-    mainWindow.center()
-  })
-
-  ipcMain.on('window:show-donut', () => {
-    if (!mainWindow) return
-    mainWindow.setSize(DONUT_SIZE, DONUT_SIZE)
     mainWindow.center()
   })
 }

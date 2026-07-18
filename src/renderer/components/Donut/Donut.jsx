@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BiBookAlt, BiSolidPencil, BiSolidCaretRightCircle, BiSolidMegaphone } from 'react-icons/bi'
-import { getSectorPath, getSectorCenter } from './donutMath'
+import { getSectorPath, getSectorCenter, getSectorIndexAtPoint } from './donutMath'
 
 const SECTORS = [
   { index: 0, label: '강의자료', icon: BiBookAlt },
@@ -17,13 +17,36 @@ const INNER_R = 52.5
 const BASE_COLOR = '#fe748a'
 const HOVER_COLOR = '#ff99b0'
 
-export default function Donut({ onHoverChange }) {
-  const [hoveredIndex, setHoveredIndex] = useState(null)
+// 창이 다시 보일 때 마우스가 이미 섹터 위에 있으면(움직이지 않아 mouseenter가
+// 발생하지 않는 경우) 커서 위치로 직접 초기 호버 섹터를 계산
+function getInitialHoverIndex(cursor) {
+  if (!cursor) return null
+  const offsetX = (window.innerWidth - SIZE) / 2
+  const offsetY = (window.innerHeight - SIZE) / 2
+  return getSectorIndexAtPoint(
+    cursor.x - offsetX,
+    cursor.y - offsetY,
+    CX,
+    CY,
+    INNER_R,
+    OUTER_R,
+    SECTORS.length
+  )
+}
+
+export default function Donut({ onHoverChange, initialCursor }) {
+  const [hoveredIndex, setHoveredIndex] = useState(() => getInitialHoverIndex(initialCursor))
 
   const handleHover = (index) => {
     setHoveredIndex(index)
     onHoverChange?.(index)
   }
+
+  // 마운트 시점의 초기 호버 상태를 부모(App)에도 동기화
+  useEffect(() => {
+    onHoverChange?.(hoveredIndex)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <svg

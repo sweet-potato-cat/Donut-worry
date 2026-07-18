@@ -11,6 +11,7 @@ const SUB_DONUTS = [LectureSubDonut, AssignmentSubDonut, VideoSubDonut]
 export default function App() {
   const [activeSubDonut, setActiveSubDonut] = useState(null) // null | 0(강의자료) | 1(과제) | 2(동영상)
   const [page, setPage] = useState(null) // null | 0~3 (Option+Space 떼는 순간 확정된 페이지)
+  const [donutCursor, setDonutCursor] = useState(null) // 도넛이 다시 보일 때의 창 기준 커서 좌표
   const hoveredIndexRef = useRef(null)
 
   const handleHoverChange = (index) => {
@@ -19,10 +20,11 @@ export default function App() {
 
   // Main 도넛이 다시 열릴 때 상태 초기화
   useEffect(() => {
-    const handler = () => {
+    const handler = (_e, cursor) => {
       setActiveSubDonut(null)
       setPage(null)
       hoveredIndexRef.current = null
+      setDonutCursor(cursor ?? null)
     }
     window.electron?.ipcRenderer.on('main:show', handler)
     return () => window.electron?.ipcRenderer.removeListener('main:show', handler)
@@ -50,14 +52,12 @@ export default function App() {
     return () => window.electron?.ipcRenderer.removeListener('main:confirm', handler)
   }, [])
 
-  // Esc → 페이지에서 Main 도넛으로, Sub 도넛에서 Main 도넛으로 복귀
+  // Esc → 창을 닫고, 다시 열 때는 Option+Space로 새로 호출
   useEffect(() => {
     const handler = (e) => {
       if (e.key !== 'Escape') return
-      if (page !== null) {
+      if (page !== null || activeSubDonut !== null) {
         setPage(null)
-        window.electron?.ipcRenderer.send('window:show-donut')
-      } else if (activeSubDonut !== null) {
         setActiveSubDonut(null)
         window.electron?.ipcRenderer.send('window:hide')
       }
@@ -102,7 +102,7 @@ export default function App() {
         </div>
       ) : (
         <div style={{ WebkitAppRegion: 'no-drag' }}>
-          <Donut onHoverChange={handleHoverChange} />
+          <Donut onHoverChange={handleHoverChange} initialCursor={donutCursor} />
         </div>
       )}
     </div>

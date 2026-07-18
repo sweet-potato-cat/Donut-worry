@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { uIOhook, UiohookKey } from 'uiohook-napi'
 import { registerIpcHandlers } from './ipc.js'
+import { stopSync } from './courses.js'
 
 let mainWindow = null
 
@@ -44,9 +45,8 @@ function createWindow() {
   }
 }
 
-let altDown = false
-let spaceDown = false
 let donutHeld = false
+const heldKeys = new Set()
 
 // 창 재배치 직후 OS 커서 위치를 창 기준 좌표로 변환
 // (도넛을 다시 그릴 때 마우스가 이미 섹터 위에 있어도 호버를 즉시 반영하기 위함)
@@ -72,15 +72,6 @@ function hideDonutWindow() {
   mainWindow.hide()
 }
 
-function toggleDonutWindow() {
-  if (!mainWindow) return
-  if (mainWindow.isVisible()) {
-    hideDonutWindow()
-  } else {
-    showDonutWindow()
-  }
-}
-
 let activeSubDonutIndex = null
 
 function openSubDonut(index) {
@@ -99,24 +90,39 @@ function openSubDonut(index) {
   mainWindow.webContents.send('subdonut:open', { index })
 }
 
-// Option(Alt)+Space를 누르고 있는 동안 도넛 표시, 떼는 순간 main:confirm 전달
-// (globalShortcut은 keyup을 감지하지 못해 uiohook으로 직접 후킹)
+// 우측 Ctrl/Alt도 좌측과 동일하게 취급 (사용자가 어느 쪽을 누르든 조합이 성립하도록)
+function normalizeKeycode(keycode) {
+  if (keycode === UiohookKey.CtrlRight) return UiohookKey.Ctrl
+  if (keycode === UiohookKey.AltRight) return UiohookKey.Alt
+  return keycode
+}
+
+// mac: Option(Alt)+Space, Windows: Ctrl+Alt+D
+// 두 경우 모두 "누르고 있는 동안" 도넛을 표시해야 하므로, keyup을 감지 못하는
+// globalShortcut 대신 uiohook으로 keydown/keyup을 직접 추적한다.
+const HOLD_COMBO =
+  process.platform === 'darwin'
+    ? [UiohookKey.Alt, UiohookKey.Space]
+    : [UiohookKey.Ctrl, UiohookKey.Alt, UiohookKey.D]
+
+function isHoldComboActive() {
+  return HOLD_COMBO.every((key) => heldKeys.has(key))
+}
+
 function registerHoldListener() {
   uIOhook.on('keydown', (e) => {
-    if (e.keycode === UiohookKey.Alt) altDown = true
-    if (e.keycode === UiohookKey.Space) spaceDown = true
+    heldKeys.add(normalizeKeycode(e.keycode))
 
-    if (altDown && spaceDown && !donutHeld) {
+    if (isHoldComboActive() && !donutHeld) {
       donutHeld = true
       showDonutWindow()
     }
   })
 
   uIOhook.on('keyup', (e) => {
-    if (e.keycode === UiohookKey.Alt) altDown = false
-    if (e.keycode === UiohookKey.Space) spaceDown = false
+    heldKeys.delete(normalizeKeycode(e.keycode))
 
-    if (donutHeld && !(altDown && spaceDown)) {
+    if (donutHeld && !isHoldComboActive()) {
       donutHeld = false
       mainWindow?.webContents.send('main:confirm')
     }
@@ -132,9 +138,8 @@ function registerShortcuts() {
     globalShortcut.register('Cmd+2', () => openSubDonut(1))
     globalShortcut.register('Cmd+3', () => openSubDonut(2))
   } else {
-    // Windows: Alt+Space 홀드 감지가 시스템 예약 단축키와 충돌해 불안정하므로
-    // ctrl+alt+D(Main 도넛 토글), ctrl+alt+1~3(Sub 도넛)을 대신 사용
-    globalShortcut.register('Ctrl+Alt+D', () => toggleDonutWindow())
+    // Windows: Main 도넛은 registerHoldListener의 Ctrl+Alt+D 홀드 감지로 처리하고,
+    // Sub 도넛은 Mac과 동일하게 누를 때마다 열고/닫는 토글 단축키로 유지한다.
     globalShortcut.register('Ctrl+Alt+1', () => openSubDonut(0))
     globalShortcut.register('Ctrl+Alt+2', () => openSubDonut(1))
     globalShortcut.register('Ctrl+Alt+3', () => openSubDonut(2))
@@ -181,4 +186,5 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll()
   uIOhook.stop()
+  stopSync()
 })

@@ -8,6 +8,47 @@ const CY = SIZE / 2
 const OUTER_R = 185
 const INNER_R = 52.5
 const LABEL_COLOR = '#3a3a3a'
+const LABEL_FONT_SIZE = 11
+const LABEL_LINE_HEIGHT = 12
+const LABEL_MAX_CHARS = 6
+const LABEL_MAX_LINES = 3
+
+// 좁은 섹터 안에 들어가도록 라벨을 여러 줄로 나누고, 넘치면 말줄임표로 축약
+function wrapLabel(text, maxChars = LABEL_MAX_CHARS, maxLines = LABEL_MAX_LINES) {
+  const words = String(text).split(' ')
+  const lines = []
+  let current = ''
+
+  const flush = () => {
+    if (current) lines.push(current)
+    current = ''
+  }
+
+  for (const word of words) {
+    let rest = word
+    while (rest.length > maxChars) {
+      flush()
+      lines.push(rest.slice(0, maxChars))
+      rest = rest.slice(maxChars)
+    }
+    if (!current) {
+      current = rest
+    } else if ((current + ' ' + rest).length <= maxChars) {
+      current = current + ' ' + rest
+    } else {
+      flush()
+      current = rest
+    }
+  }
+  flush()
+
+  if (lines.length <= maxLines) return lines
+
+  const truncated = lines.slice(0, maxLines)
+  const last = truncated[maxLines - 1]
+  truncated[maxLines - 1] = last.length >= maxChars ? last.slice(0, maxChars - 1) + '…' : last + '…'
+  return truncated
+}
 
 export default function SubDonut({ subjects, color, onSelect }) {
   const [hoveredIndex, setHoveredIndex] = useState(null)
@@ -39,7 +80,10 @@ export default function SubDonut({ subjects, color, onSelect }) {
             <path
               d={path}
               fill={color}
-              style={{ filter: isHovered ? 'brightness(1.1)' : 'none', transition: 'filter 0.15s ease' }}
+              style={{
+                filter: isHovered ? 'brightness(1.1)' : 'none',
+                transition: 'filter 0.15s ease'
+              }}
             />
             <BiSolidFolder
               x={center.x - iconSize / 2}
@@ -52,13 +96,17 @@ export default function SubDonut({ subjects, color, onSelect }) {
               x={center.x}
               y={center.y + iconSize / 2 + 6}
               textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize={14}
+              dominantBaseline="hanging"
+              fontSize={LABEL_FONT_SIZE}
               fontWeight={700}
               fill={LABEL_COLOR}
               style={{ userSelect: 'none' }}
             >
-              {label}
+              {wrapLabel(label).map((line, lineIndex) => (
+                <tspan key={lineIndex} x={center.x} dy={lineIndex === 0 ? 0 : LABEL_LINE_HEIGHT}>
+                  {line}
+                </tspan>
+              ))}
             </text>
           </g>
         )

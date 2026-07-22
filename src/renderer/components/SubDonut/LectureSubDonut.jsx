@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BiLoaderAlt } from 'react-icons/bi'
+import { BiLoaderAlt, BiBookAlt } from 'react-icons/bi'
 import SubDonut from './SubDonut'
 import CourseFileList from './CourseFileList'
 
@@ -56,6 +56,7 @@ export default function LectureSubDonut() {
     <SubDonut
       subjects={courses.map((course) => course.name)}
       color={COLOR}
+      centerIcon={BiBookAlt}
       onSelect={(index) => setSelectedCourse(courses[index].name)}
     />
   )

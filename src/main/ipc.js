@@ -19,11 +19,19 @@ const CHANNELS = [
   'assignment:sync',
   'assignment:getAll',
   'assignment:complete',
+  'assignment:listCourses',
+  'assignment:listByCourse',
+  'assignment:open',
   'video:sync',
   'video:getAll',
+  'video:listCourses',
+  'video:listByCourse',
+  'video:open',
   'notice:sync',
   'notice:getAll',
   'notice:read',
+  'notice:list',
+  'notice:open',
   'sync:all'
 ]
 

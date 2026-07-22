@@ -12,6 +12,7 @@ const LABEL_FONT_SIZE = 11
 const LABEL_LINE_HEIGHT = 12
 const LABEL_MAX_CHARS = 6
 const LABEL_MAX_LINES = 3
+const CENTER_ICON_SIZE = 40
 
 // 좁은 섹터 안에 들어가도록 라벨을 여러 줄로 나누고, 넘치면 말줄임표로 축약
 function wrapLabel(text, maxChars = LABEL_MAX_CHARS, maxLines = LABEL_MAX_LINES) {
@@ -50,7 +51,7 @@ function wrapLabel(text, maxChars = LABEL_MAX_CHARS, maxLines = LABEL_MAX_LINES)
   return truncated
 }
 
-export default function SubDonut({ subjects, color, onSelect }) {
+export default function SubDonut({ subjects, color, onSelect, centerIcon: CenterIcon }) {
   const [hoveredIndex, setHoveredIndex] = useState(null)
   const sweep = 360 / subjects.length
 
@@ -114,6 +115,16 @@ export default function SubDonut({ subjects, color, onSelect }) {
 
       {/* 중앙 구멍 투명 */}
       <circle cx={CX} cy={CY} r={INNER_R} fill="transparent" />
+
+      {CenterIcon && (
+        <CenterIcon
+          x={CX - CENTER_ICON_SIZE / 2}
+          y={CY - CENTER_ICON_SIZE / 2}
+          size={CENTER_ICON_SIZE}
+          color={color}
+          style={{ pointerEvents: 'none' }}
+        />
+      )}
     </svg>
   )
 }

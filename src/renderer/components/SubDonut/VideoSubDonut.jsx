@@ -41,8 +41,8 @@ export default function VideoSubDonut({ initialCursor, openSeq }) {
   //  발생할 기회가 없었으므로, 즉시 hide하지 않고 로딩이 끝날 때까지 판정을
   //  미룬다. 로딩이 끝나면 SubDonut이 마운트되며 커서 위치 기반 초기 호버가
   //  hoveredIndexRef에 반영된 뒤 아래 두 번째 effect에서 판정을 이어간다.)
-  // selectedCourse가 이미 세팅된 상태(=드릴다운 화면에서 "이전" 버튼 등으로
-  // 마우스만 조작 중인 상태)라면 이 이벤트는 무시한다. 섹터 화면이 아닌
+  // selectedCourse가 이미 세팅된 상태(=드릴다운 화면에서 마우스만 조작 중인
+  // 상태)라면 이 이벤트는 무시한다. 섹터 화면이 아닌
   // 동안 단축키를 늦게 떼서 도착한 confirm이 오래된 hoveredIndexRef 값으로
   // 화면을 다시 바꾸거나 창을 hide시키는 것을 막기 위함
   const confirmSelection = () => {
@@ -76,9 +76,7 @@ export default function VideoSubDonut({ initialCursor, openSeq }) {
   }, [loading, courses])
 
   if (selectedCourse) {
-    return (
-      <VideoList courseName={selectedCourse} color={COLOR} onBack={() => setSelectedCourse(null)} />
-    )
+    return <VideoList courseName={selectedCourse} color={COLOR} />
   }
 
   if (loading) {
@@ -98,6 +96,7 @@ export default function VideoSubDonut({ initialCursor, openSeq }) {
     <SubDonut
       key={openSeq}
       subjects={courses.map((course) => course.name)}
+      alerts={courses.map((course) => (course.incomplete ?? 0) > 0)}
       color={COLOR}
       centerIcon={BiSolidCaretRightCircle}
       onHoverChange={(index) => {

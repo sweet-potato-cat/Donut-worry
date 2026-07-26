@@ -24,12 +24,14 @@ export function listAssignmentCourses() {
 
   for (const item of assignments) {
     const name = item.courseName ?? '기타'
-    if (!byCourse.has(name)) byCourse.set(name, 0)
-    byCourse.set(name, byCourse.get(name) + 1)
+    if (!byCourse.has(name)) byCourse.set(name, { count: 0, pending: 0 })
+    const entry = byCourse.get(name)
+    entry.count += 1
+    if (item.isUnsubmitted || item.missing) entry.pending += 1
   }
 
   return Array.from(byCourse.entries())
-    .map(([name, count]) => ({ name, count }))
+    .map(([name, { count, pending }]) => ({ name, count, pending }))
     .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
 }
 

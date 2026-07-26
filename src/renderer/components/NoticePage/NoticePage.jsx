@@ -144,8 +144,9 @@ export default function NoticePage() {
         padding: '28px 0 20px'
       }}
     >
-      <div style={{ fontSize: 22, fontWeight: 700, color: TITLE_COLOR }}>공지</div>
-      <div style={{ fontSize: 12, color: '#999', marginBottom: 14 }}>Esc로 도넛으로 돌아가기</div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: TITLE_COLOR, marginBottom: 14 }}>
+        공지
+      </div>
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
         <ModeButton
@@ -291,12 +292,16 @@ export default function NoticePage() {
             {syncMessage.text}
           </div>
         )}
-        <button onClick={handleSync} disabled={syncing} style={syncButtonStyle(syncing)}>
+        <button
+          onClick={handleSync}
+          disabled={syncing}
+          style={syncButtonStyle(syncing)}
+          title="새로고침"
+        >
           <BiRefresh
             size={16}
             style={syncing ? { animation: 'spin 0.8s linear infinite' } : undefined}
           />
-          {syncing ? '새로고침 중…' : '새로고침'}
         </button>
       </div>
 
@@ -377,14 +382,13 @@ function syncButtonStyle(syncing) {
   return {
     display: 'flex',
     alignItems: 'center',
-    gap: 6,
-    padding: '9px 16px',
-    borderRadius: 999,
+    justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: '50%',
     border: 'none',
     background: syncing ? '#eee' : TITLE_COLOR,
     color: syncing ? '#999' : '#fff',
-    fontSize: 13,
-    fontWeight: 700,
     cursor: syncing ? 'default' : 'pointer',
     boxShadow: syncing ? 'none' : '0 4px 12px rgba(201,131,254,0.4)'
   }

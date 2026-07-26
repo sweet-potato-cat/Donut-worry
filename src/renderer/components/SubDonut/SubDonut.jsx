@@ -13,6 +13,7 @@ const LABEL_LINE_HEIGHT = 12
 const LABEL_MAX_CHARS = 6
 const LABEL_MAX_LINES = 3
 const CENTER_ICON_SIZE = 40
+const ALERT_STROKE_WIDTH = 3
 
 // 좁은 섹터 안에 들어가도록 라벨을 여러 줄로 나누고, 넘치면 말줄임표로 축약
 function wrapLabel(text, maxChars = LABEL_MAX_CHARS, maxLines = LABEL_MAX_LINES) {
@@ -73,7 +74,8 @@ export default function SubDonut({
   color,
   onHoverChange,
   initialCursor,
-  centerIcon: CenterIcon
+  centerIcon: CenterIcon,
+  alerts
 }) {
   const [hoveredIndex, setHoveredIndex] = useState(() =>
     getInitialHoverIndex(initialCursor, subjects.length)
@@ -102,6 +104,7 @@ export default function SubDonut({
         const startAngle = index * sweep
         const endAngle = startAngle + sweep - 0.5
         const isHovered = hoveredIndex === index
+        const hasAlert = Boolean(alerts?.[index])
         const path = getSectorPath(CX, CY, INNER_R, OUTER_R, startAngle, endAngle)
         const center = getSectorCenter(CX, CY, INNER_R, OUTER_R, startAngle, endAngle)
         const iconSize = isHovered ? 30 : 26
@@ -120,6 +123,18 @@ export default function SubDonut({
                 transition: 'filter 0.15s ease'
               }}
             />
+            {hasAlert && (
+              <path
+                d={path}
+                fill="none"
+                stroke="#fff"
+                strokeWidth={ALERT_STROKE_WIDTH}
+                style={{
+                  filter: 'drop-shadow(0 0 4px rgba(255,255,255,0.9))',
+                  pointerEvents: 'none'
+                }}
+              />
+            )}
             <BiSolidFolder
               x={center.x - iconSize / 2}
               y={center.y - iconSize - 4}

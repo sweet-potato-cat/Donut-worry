@@ -115,8 +115,9 @@ export default function VideoPage() {
         padding: '28px 0 20px'
       }}
     >
-      <div style={{ fontSize: 22, fontWeight: 700, color: TITLE_COLOR }}>동영상</div>
-      <div style={{ fontSize: 12, color: '#999', marginBottom: 20 }}>Esc로 도넛으로 돌아가기</div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: TITLE_COLOR, marginBottom: 20 }}>
+        동영상
+      </div>
 
       <div style={{ width: '100%', maxWidth: 560, flex: 1, overflowY: 'auto', padding: '0 24px' }}>
         {loading ? (
@@ -253,12 +254,16 @@ export default function VideoPage() {
             {syncMessage.text}
           </div>
         )}
-        <button onClick={handleSync} disabled={syncing} style={syncButtonStyle(syncing)}>
+        <button
+          onClick={handleSync}
+          disabled={syncing}
+          style={syncButtonStyle(syncing)}
+          title="새로고침"
+        >
           <BiRefresh
             size={16}
             style={syncing ? { animation: 'spin 0.8s linear infinite' } : undefined}
           />
-          {syncing ? '새로고침 중…' : '새로고침'}
         </button>
       </div>
 
@@ -320,14 +325,13 @@ function syncButtonStyle(syncing) {
   return {
     display: 'flex',
     alignItems: 'center',
-    gap: 6,
-    padding: '9px 16px',
-    borderRadius: 999,
+    justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: '50%',
     border: 'none',
     background: syncing ? '#eee' : TITLE_COLOR,
     color: syncing ? '#999' : '#fff',
-    fontSize: 13,
-    fontWeight: 700,
     cursor: syncing ? 'default' : 'pointer',
     boxShadow: syncing ? 'none' : '0 4px 12px rgba(58,159,224,0.4)'
   }

@@ -42,8 +42,8 @@ export default function LectureSubDonut({ initialCursor, openSeq }) {
   //  미룬다. 로딩이 끝나면 SubDonut이 마운트되며 커서 위치 기반 초기 호버가
   //  hoveredIndexRef에 반영된 뒤 아래 두 번째 effect에서 판정을 이어간다.)
   //
-  // selectedCourse가 이미 세팅된 상태(=드릴다운 화면에서 "이전" 버튼 등으로
-  // 마우스만 조작 중인 상태)라면 이 이벤트는 무시한다. 섹터 화면이 아닌
+  // selectedCourse가 이미 세팅된 상태(=드릴다운 화면에서 마우스만 조작 중인
+  // 상태)라면 이 이벤트는 무시한다. 섹터 화면이 아닌
   // 동안 단축키를 늦게 떼서 도착한 confirm이 오래된 hoveredIndexRef 값으로
   // 화면을 다시 바꾸거나 창을 hide시키는 것을 막기 위함
   const confirmSelection = () => {
@@ -77,13 +77,7 @@ export default function LectureSubDonut({ initialCursor, openSeq }) {
   }, [loading, courses])
 
   if (selectedCourse) {
-    return (
-      <CourseFileList
-        courseName={selectedCourse}
-        color={COLOR}
-        onBack={() => setSelectedCourse(null)}
-      />
-    )
+    return <CourseFileList courseName={selectedCourse} color={COLOR} />
   }
 
   if (loading) {

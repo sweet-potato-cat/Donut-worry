@@ -74,8 +74,10 @@ function showDonutWindow() {
   if (!mainWindow) return
   mainWindow.setSize(DONUT_SIZE, DONUT_SIZE)
   positionWindowAtCursor()
-  mainWindow.show()
+  // 창을 보이기 전에 렌더러 상태부터 리셋시켜, 숨겨져 있던 동안 남아있던
+  // 이전 화면이 한 프레임이라도 먼저 노출되지 않게 한다
   mainWindow.webContents.send('main:show', getCursorPointInWindow())
+  mainWindow.show()
 }
 
 function hideDonutWindow() {
@@ -89,8 +91,8 @@ function showSubDonutWindow(index) {
   if (!mainWindow) return
   mainWindow.setSize(DONUT_SIZE, DONUT_SIZE)
   positionWindowAtCursor()
+  mainWindow.webContents.send('subdonut:open', { index, cursor: getCursorPointInWindow() })
   mainWindow.show()
-  mainWindow.webContents.send('subdonut:open', { index })
 }
 
 // 우측 Ctrl/Alt/Cmd도 좌측과 동일하게 취급 (사용자가 어느 쪽을 누르든 조합이 성립하도록)
@@ -159,7 +161,7 @@ function registerHoldListener() {
 
     if (subDonutHeldIndex !== null && !isComboActive(SUB_HOLD_COMBOS[subDonutHeldIndex].keys)) {
       subDonutHeldIndex = null
-      hideDonutWindow()
+      mainWindow?.webContents.send('subdonut:confirm')
     }
   })
 

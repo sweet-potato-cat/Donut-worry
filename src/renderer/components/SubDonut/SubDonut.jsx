@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BiSolidFolder } from 'react-icons/bi'
-import { getSectorPath, getSectorCenter } from '../Donut/donutMath'
+import { getSectorPath, getSectorCenter, getSectorIndexAtPoint } from '../Donut/donutMath'
 
 const SIZE = 400
 const CX = SIZE / 2
@@ -51,9 +51,45 @@ function wrapLabel(text, maxChars = LABEL_MAX_CHARS, maxLines = LABEL_MAX_LINES)
   return truncated
 }
 
-export default function SubDonut({ subjects, color, onSelect, centerIcon: CenterIcon }) {
-  const [hoveredIndex, setHoveredIndex] = useState(null)
+// 창이 다시 보일 때 마우스가 이미 섹터 위에 있으면(움직이지 않아 mouseenter가
+// 발생하지 않는 경우) 커서 위치로 직접 초기 호버 섹터를 계산
+function getInitialHoverIndex(cursor, sectorCount) {
+  if (!cursor || !sectorCount) return null
+  const offsetX = (window.innerWidth - SIZE) / 2
+  const offsetY = (window.innerHeight - SIZE) / 2
+  return getSectorIndexAtPoint(
+    cursor.x - offsetX,
+    cursor.y - offsetY,
+    CX,
+    CY,
+    INNER_R,
+    OUTER_R,
+    sectorCount
+  )
+}
+
+export default function SubDonut({
+  subjects,
+  color,
+  onHoverChange,
+  initialCursor,
+  centerIcon: CenterIcon
+}) {
+  const [hoveredIndex, setHoveredIndex] = useState(() =>
+    getInitialHoverIndex(initialCursor, subjects.length)
+  )
   const sweep = 360 / subjects.length
+
+  const handleHover = (index) => {
+    setHoveredIndex(index)
+    onHoverChange?.(index)
+  }
+
+  // 마운트 시점의 초기 호버 상태를 부모에도 동기화
+  useEffect(() => {
+    onHoverChange?.(hoveredIndex)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <svg
@@ -73,10 +109,8 @@ export default function SubDonut({ subjects, color, onSelect, centerIcon: Center
         return (
           <g
             key={index}
-            onMouseEnter={() => setHoveredIndex(index)}
-            onMouseLeave={() => setHoveredIndex(null)}
-            onClick={() => onSelect?.(index)}
-            style={{ cursor: 'pointer' }}
+            onMouseEnter={() => handleHover(index)}
+            onMouseLeave={() => handleHover(null)}
           >
             <path
               d={path}

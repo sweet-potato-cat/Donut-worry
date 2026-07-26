@@ -10,6 +10,7 @@ import {
   isWeeklyMaterialItem
 } from './features/materials.mjs'
 import { collectAssignmentRecords } from './features/assignments.mjs'
+import { collectGradingWeightRecords } from './features/grading.mjs'
 import { collectNoticeRecords } from './features/notices.mjs'
 import { collectVideoRecords } from './features/videos.mjs'
 import { getCliOption, hasCliFlag, printUsage } from './utils/cli-utils.mjs'
@@ -99,10 +100,11 @@ async function runLiveCollector() {
   const assignmentsPath = path.join(outputRoot, 'assignments.json')
   const unsubmittedAssignmentsPath = path.join(outputRoot, 'unsubmitted-assignments.json')
   const noticesPath = path.join(outputRoot, 'notices.json')
+  const gradingWeightsPath = path.join(outputRoot, 'grading-weights.json')
 
   await mkdir(outputRoot, { recursive: true })
 
-  if (!hasCliFlag('--notices-only')) {
+  if (!hasCliFlag('--notices-only') && !hasCliFlag('--grading-only')) {
     const { assignments, unsubmittedAssignments } = await collectAssignmentRecords(page, courses)
 
     await writeFile(assignmentsPath, JSON.stringify(assignments, null, 2))
@@ -115,7 +117,7 @@ async function runLiveCollector() {
     console.log(`Saved to ${unsubmittedAssignmentsPath}`)
   }
 
-  if (!hasCliFlag('--assignments-only')) {
+  if (!hasCliFlag('--assignments-only') && !hasCliFlag('--grading-only')) {
     const notices = await collectNoticeRecords(page, courses)
 
     await writeFile(noticesPath, JSON.stringify(notices, null, 2))
@@ -124,7 +126,24 @@ async function runLiveCollector() {
     console.log(`Saved to ${noticesPath}`)
   }
 
-  if (hasCliFlag('--assignments-only') || hasCliFlag('--notices-only')) {
+  if (!hasCliFlag('--assignments-only') && !hasCliFlag('--notices-only')) {
+    const gradingWeights = await collectGradingWeightRecords(browserContext, courses)
+
+    await writeFile(gradingWeightsPath, JSON.stringify(gradingWeights, null, 2))
+
+    console.log(
+      `Found grading weights for ${
+        gradingWeights.filter((record) => record.weights.length > 0).length
+      } courses.`
+    )
+    console.log(`Saved to ${gradingWeightsPath}`)
+  }
+
+  if (
+    hasCliFlag('--assignments-only') ||
+    hasCliFlag('--notices-only') ||
+    hasCliFlag('--grading-only')
+  ) {
     await browserContext.close()
     return
   }

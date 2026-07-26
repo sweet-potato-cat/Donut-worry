@@ -78,7 +78,7 @@ export default function AssignmentPage() {
       } else if (event.type === 'done') {
         setSyncing(false)
         if (event.success) {
-          setSyncMessage({ type: 'success', text: '새로고침 완료' })
+          setSyncMessage({ type: 'success', text: event.message ?? '새로고침 완료' })
           fetchCourses().then(() => {
             expandedRef.current.forEach((name) => loadItems(name))
           })

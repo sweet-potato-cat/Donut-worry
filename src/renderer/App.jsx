@@ -76,8 +76,10 @@ export default function App() {
   return (
     <div
       style={{
-        width: '100vw',
+        width: '100%',
         height: '100vh',
+        overflow: 'hidden',
+        overflowX: 'hidden',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -87,7 +89,15 @@ export default function App() {
       }}
     >
       {ActivePage ? (
-        <div style={{ width: '100%', height: '100%', WebkitAppRegion: 'no-drag' }}>
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            overflow: 'hidden',
+            background: '#f5f5f5',
+            WebkitAppRegion: 'no-drag'
+          }}
+        >
           <ActivePage />
         </div>
       ) : ActiveSubDonut ? (

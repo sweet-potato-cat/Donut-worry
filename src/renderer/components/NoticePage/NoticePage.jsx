@@ -84,7 +84,7 @@ export default function NoticePage() {
       } else if (event.type === 'done') {
         setSyncing(false)
         if (event.success) {
-          setSyncMessage({ type: 'success', text: '새로고침 완료' })
+          setSyncMessage({ type: 'success', text: event.message ?? '새로고침 완료' })
           fetchNotices()
         } else {
           setSyncMessage({ type: 'error', text: event.error ?? '새로고침에 실패했습니다' })

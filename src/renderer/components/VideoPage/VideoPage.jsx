@@ -5,35 +5,41 @@ import {
   BiLoaderAlt,
   BiRefresh,
   BiCheckCircle,
-  BiErrorCircle
+  BiErrorCircle,
+  BiSolidCaretRightCircle
 } from 'react-icons/bi'
-import { iconForFile } from '../../utils/fileIcons'
 
-const TITLE_COLOR = '#fe748a'
-const ACCENT = '#fcf39d'
+const TITLE_COLOR = '#3a9fe0'
+const ACCENT = '#cdeaff'
+const INCOMPLETE_COLOR = '#e05263'
 
-export default function LecturePage() {
+function weekLabel(item) {
+  const parts = [item.week, item.lesson].filter(Boolean)
+  return parts.join(' ')
+}
+
+export default function VideoPage() {
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(() => new Set())
-  const [filesByCourse, setFilesByCourse] = useState({})
+  const [itemsByCourse, setItemsByCourse] = useState({})
   const [syncing, setSyncing] = useState(false)
-  const [syncMessage, setSyncMessage] = useState(null) // { type: 'success' | 'error', text }
+  const [syncMessage, setSyncMessage] = useState(null)
   const expandedRef = useRef(expanded)
   useEffect(() => {
     expandedRef.current = expanded
   }, [expanded])
 
   const fetchCourses = () => {
-    return window.electron?.ipcRenderer.invoke('course:list').then((list) => {
+    return window.electron?.ipcRenderer.invoke('video:listCourses').then((list) => {
       setCourses(list ?? [])
     })
   }
 
-  const loadFiles = (courseName) => {
-    setFilesByCourse((prev) => ({ ...prev, [courseName]: 'loading' }))
-    window.electron?.ipcRenderer.invoke('course:listFiles', { courseName }).then((list) => {
-      setFilesByCourse((prev) => ({ ...prev, [courseName]: list ?? [] }))
+  const loadItems = (courseName) => {
+    setItemsByCourse((prev) => ({ ...prev, [courseName]: 'loading' }))
+    window.electron?.ipcRenderer.invoke('video:listByCourse', { courseName }).then((list) => {
+      setItemsByCourse((prev) => ({ ...prev, [courseName]: list ?? [] }))
     })
   }
 
@@ -56,7 +62,7 @@ export default function LecturePage() {
         if (event.success) {
           setSyncMessage({ type: 'success', text: event.message ?? '새로고침 완료' })
           fetchCourses().then(() => {
-            expandedRef.current.forEach((name) => loadFiles(name))
+            expandedRef.current.forEach((name) => loadItems(name))
           })
         } else {
           setSyncMessage({ type: 'error', text: event.error ?? '새로고침에 실패했습니다' })
@@ -83,14 +89,14 @@ export default function LecturePage() {
         next.delete(courseName)
       } else {
         next.add(courseName)
-        if (!filesByCourse[courseName]) loadFiles(courseName)
+        if (!itemsByCourse[courseName]) loadItems(courseName)
       }
       return next
     })
   }
 
-  const openFile = (filePath) => {
-    window.electron?.ipcRenderer.invoke('course:openFile', { filePath })
+  const openVideo = (url) => {
+    window.electron?.ipcRenderer.invoke('video:open', { url })
   }
 
   const handleSync = () => {
@@ -110,7 +116,7 @@ export default function LecturePage() {
       }}
     >
       <div style={{ fontSize: 22, fontWeight: 700, color: TITLE_COLOR, marginBottom: 20 }}>
-        강의자료
+        동영상
       </div>
 
       <div style={{ width: '100%', maxWidth: 560, flex: 1, overflowY: 'auto', padding: '0 24px' }}>
@@ -120,11 +126,11 @@ export default function LecturePage() {
             <span>불러오는 중…</span>
           </CenterState>
         ) : courses.length === 0 ? (
-          <CenterState>다운로드된 강의자료가 없습니다</CenterState>
+          <CenterState>동영상 정보가 없습니다</CenterState>
         ) : (
           courses.map((course) => {
             const isOpen = expanded.has(course.name)
-            const files = filesByCourse[course.name]
+            const items = itemsByCourse[course.name]
 
             return (
               <div
@@ -136,7 +142,10 @@ export default function LecturePage() {
                   border: '1px solid #eee'
                 }}
               >
-                <button onClick={() => toggleCourse(course.name)} style={toggleHeaderStyle(isOpen)}>
+                <button
+                  onClick={() => toggleCourse(course.name)}
+                  style={toggleHeaderStyle(isOpen, course.incomplete > 0)}
+                >
                   <span
                     style={{
                       overflow: 'hidden',
@@ -147,41 +156,63 @@ export default function LecturePage() {
                   >
                     {course.name}
                   </span>
-                  {isOpen ? <BiChevronUp size={18} /> : <BiChevronDown size={18} />}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    {course.incomplete > 0 && (
+                      <span style={badgeStyle}>{course.incomplete}개 미완료</span>
+                    )}
+                    {isOpen ? <BiChevronUp size={18} /> : <BiChevronDown size={18} />}
+                  </div>
                 </button>
 
                 {isOpen && (
                   <div style={{ padding: 6, background: '#fff' }}>
-                    {files === 'loading' || files === undefined ? (
-                      <div style={filePlaceholderStyle}>불러오는 중…</div>
-                    ) : files.length === 0 ? (
-                      <div style={filePlaceholderStyle}>다운로드된 파일이 없습니다</div>
+                    {items === 'loading' || items === undefined ? (
+                      <div style={itemPlaceholderStyle}>불러오는 중…</div>
+                    ) : items.length === 0 ? (
+                      <div style={itemPlaceholderStyle}>동영상이 없습니다</div>
                     ) : (
-                      files.map((file) => {
-                        const Icon = iconForFile(file.name)
-                        return (
-                          <div
-                            key={file.path}
-                            onClick={() => openFile(file.path)}
-                            style={fileRowStyle}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = '#f7f7f7')}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                          >
-                            <Icon size={17} color="#999" style={{ flexShrink: 0 }} />
-                            <span
+                      items.map((item, index) => (
+                        <div
+                          key={`${item.url}-${index}`}
+                          onClick={() => openVideo(item.url)}
+                          style={itemRowStyle}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = '#f7f7f7')}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <BiSolidCaretRightCircle
+                            size={17}
+                            color={item.isCompleted ? '#3a9fe0' : INCOMPLETE_COLOR}
+                            style={{ flexShrink: 0 }}
+                          />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
                               style={{
                                 fontSize: 13,
-                                color: '#3a3a3a',
+                                color: item.isCompleted ? '#3a3a3a' : INCOMPLETE_COLOR,
+                                fontWeight: 600,
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap'
                               }}
                             >
-                              {file.name}
-                            </span>
+                              {item.title}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: '#999', marginTop: 2 }}>
+                              {weekLabel(item)}
+                            </div>
                           </div>
-                        )
-                      })
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: item.isCompleted ? '#4caf50' : INCOMPLETE_COLOR,
+                              flexShrink: 0
+                            }}
+                          >
+                            {item.isCompleted ? '완료' : `${item.progressPercent ?? 0}%`}
+                          </span>
+                        </div>
+                      ))
                     )}
                   </div>
                 )}
@@ -245,7 +276,7 @@ function CenterState({ children }) {
   return <div style={{ ...centerStateStyle }}>{children}</div>
 }
 
-function toggleHeaderStyle(isOpen) {
+function toggleHeaderStyle(isOpen, hasIncomplete) {
   return {
     width: '100%',
     display: 'flex',
@@ -254,8 +285,8 @@ function toggleHeaderStyle(isOpen) {
     gap: 8,
     padding: '14px 16px',
     border: 'none',
-    background: isOpen ? ACCENT : '#fffbe0',
-    color: '#3a3a3a',
+    background: isOpen ? ACCENT : '#eef8ff',
+    color: hasIncomplete ? INCOMPLETE_COLOR : '#3a3a3a',
     fontSize: 14,
     fontWeight: 700,
     cursor: 'pointer',
@@ -275,10 +306,19 @@ const centerStateStyle = {
   paddingTop: 60
 }
 
-const filePlaceholderStyle = {
+const itemPlaceholderStyle = {
   padding: '10px 10px',
   color: '#bbb',
   fontSize: 13
+}
+
+const badgeStyle = {
+  fontSize: 10.5,
+  fontWeight: 700,
+  color: INCOMPLETE_COLOR,
+  background: '#fff',
+  borderRadius: 999,
+  padding: '2px 8px'
 }
 
 function syncButtonStyle(syncing) {
@@ -293,11 +333,11 @@ function syncButtonStyle(syncing) {
     background: syncing ? '#eee' : TITLE_COLOR,
     color: syncing ? '#999' : '#fff',
     cursor: syncing ? 'default' : 'pointer',
-    boxShadow: syncing ? 'none' : '0 4px 12px rgba(254,116,138,0.4)'
+    boxShadow: syncing ? 'none' : '0 4px 12px rgba(58,159,224,0.4)'
   }
 }
 
-const fileRowStyle = {
+const itemRowStyle = {
   display: 'flex',
   alignItems: 'center',
   gap: 10,

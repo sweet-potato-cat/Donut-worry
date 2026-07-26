@@ -1,19 +1,24 @@
 import { useEffect, useState } from 'react'
-import { BiLoaderAlt } from 'react-icons/bi'
-import { iconForFile } from '../../utils/fileIcons'
+import { BiLoaderAlt, BiSolidCaretRightCircle } from 'react-icons/bi'
 
 const PANEL_SIZE = 400
+const INCOMPLETE_COLOR = '#e05263'
 
-export default function CourseFileList({ courseName, color }) {
-  const [files, setFiles] = useState([])
+function weekLabel(item) {
+  const parts = [item.week, item.lesson].filter(Boolean)
+  return parts.join(' ')
+}
+
+export default function VideoList({ courseName, color }) {
+  const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
     window.electron?.ipcRenderer
-      .invoke('course:listFiles', { courseName })
+      .invoke('video:listByCourse', { courseName })
       .then((list) => {
-        if (!cancelled) setFiles(list ?? [])
+        if (!cancelled) setItems(list ?? [])
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -23,8 +28,8 @@ export default function CourseFileList({ courseName, color }) {
     }
   }, [courseName])
 
-  const openFile = (filePath) => {
-    window.electron?.ipcRenderer.invoke('course:openFile', { filePath })
+  const openVideo = (url) => {
+    window.electron?.ipcRenderer.invoke('video:open', { url })
   }
 
   return (
@@ -74,34 +79,49 @@ export default function CourseFileList({ courseName, color }) {
             />
             <span>불러오는 중…</span>
           </div>
-        ) : files.length === 0 ? (
-          <div style={emptyStateStyle}>다운로드된 파일이 없습니다</div>
+        ) : items.length === 0 ? (
+          <div style={emptyStateStyle}>동영상이 없습니다</div>
         ) : (
-          files.map((file) => {
-            const Icon = iconForFile(file.name)
-            return (
-              <div
-                key={file.path}
-                onClick={() => openFile(file.path)}
-                style={fileRowStyle}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#f7f7f7')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-              >
-                <Icon size={18} color="#999" style={{ flexShrink: 0 }} />
-                <span
+          items.map((item, index) => (
+            <div
+              key={`${item.url}-${index}`}
+              onClick={() => openVideo(item.url)}
+              style={itemRowStyle}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#f7f7f7')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <BiSolidCaretRightCircle
+                size={17}
+                color={item.isCompleted ? color : INCOMPLETE_COLOR}
+                style={{ flexShrink: 0 }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
                   style={{
                     fontSize: 13,
-                    color: '#3a3a3a',
+                    color: item.isCompleted ? '#3a3a3a' : INCOMPLETE_COLOR,
+                    fontWeight: 600,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  {file.name}
-                </span>
+                  {item.title}
+                </div>
+                <div style={{ fontSize: 11.5, color: '#999', marginTop: 2 }}>{weekLabel(item)}</div>
               </div>
-            )
-          })
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: item.isCompleted ? '#4caf50' : INCOMPLETE_COLOR,
+                  flexShrink: 0
+                }}
+              >
+                {item.isCompleted ? '완료' : `${item.progressPercent ?? 0}%`}
+              </span>
+            </div>
+          ))
         )}
       </div>
 
@@ -121,11 +141,11 @@ const emptyStateStyle = {
   fontSize: 13
 }
 
-const fileRowStyle = {
+const itemRowStyle = {
   display: 'flex',
   alignItems: 'center',
   gap: 10,
-  padding: '10px 10px',
+  padding: '9px 10px',
   borderRadius: 10,
   cursor: 'pointer',
   transition: 'background 0.1s ease'

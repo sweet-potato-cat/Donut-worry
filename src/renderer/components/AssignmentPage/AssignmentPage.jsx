@@ -5,35 +5,59 @@ import {
   BiLoaderAlt,
   BiRefresh,
   BiCheckCircle,
-  BiErrorCircle
+  BiErrorCircle,
+  BiTimeFive
 } from 'react-icons/bi'
-import { iconForFile } from '../../utils/fileIcons'
 
-const TITLE_COLOR = '#fe748a'
-const ACCENT = '#fcf39d'
+const TITLE_COLOR = '#fea443'
+const ACCENT = '#ffe2c0'
 
-export default function LecturePage() {
+function formatDueDate(dueAt) {
+  if (!dueAt) return '마감일 없음'
+  const date = new Date(dueAt)
+  if (Number.isNaN(date.getTime())) return '마감일 없음'
+  return date.toLocaleString('ko-KR', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function statusInfo(assignment) {
+  if (assignment.submissionStatus === 'submitted') {
+    return assignment.late
+      ? { label: '지각 제출', color: '#e0a03c' }
+      : { label: '제출완료', color: '#4caf50' }
+  }
+  if (assignment.isOverdue || assignment.missing) {
+    return { label: '기한초과', color: '#e05263' }
+  }
+  return { label: '미제출', color: '#999' }
+}
+
+export default function AssignmentPage() {
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(() => new Set())
-  const [filesByCourse, setFilesByCourse] = useState({})
+  const [itemsByCourse, setItemsByCourse] = useState({})
   const [syncing, setSyncing] = useState(false)
-  const [syncMessage, setSyncMessage] = useState(null) // { type: 'success' | 'error', text }
+  const [syncMessage, setSyncMessage] = useState(null)
   const expandedRef = useRef(expanded)
   useEffect(() => {
     expandedRef.current = expanded
   }, [expanded])
 
   const fetchCourses = () => {
-    return window.electron?.ipcRenderer.invoke('course:list').then((list) => {
+    return window.electron?.ipcRenderer.invoke('assignment:listCourses').then((list) => {
       setCourses(list ?? [])
     })
   }
 
-  const loadFiles = (courseName) => {
-    setFilesByCourse((prev) => ({ ...prev, [courseName]: 'loading' }))
-    window.electron?.ipcRenderer.invoke('course:listFiles', { courseName }).then((list) => {
-      setFilesByCourse((prev) => ({ ...prev, [courseName]: list ?? [] }))
+  const loadItems = (courseName) => {
+    setItemsByCourse((prev) => ({ ...prev, [courseName]: 'loading' }))
+    window.electron?.ipcRenderer.invoke('assignment:listByCourse', { courseName }).then((list) => {
+      setItemsByCourse((prev) => ({ ...prev, [courseName]: list ?? [] }))
     })
   }
 
@@ -56,7 +80,7 @@ export default function LecturePage() {
         if (event.success) {
           setSyncMessage({ type: 'success', text: event.message ?? '새로고침 완료' })
           fetchCourses().then(() => {
-            expandedRef.current.forEach((name) => loadFiles(name))
+            expandedRef.current.forEach((name) => loadItems(name))
           })
         } else {
           setSyncMessage({ type: 'error', text: event.error ?? '새로고침에 실패했습니다' })
@@ -83,14 +107,14 @@ export default function LecturePage() {
         next.delete(courseName)
       } else {
         next.add(courseName)
-        if (!filesByCourse[courseName]) loadFiles(courseName)
+        if (!itemsByCourse[courseName]) loadItems(courseName)
       }
       return next
     })
   }
 
-  const openFile = (filePath) => {
-    window.electron?.ipcRenderer.invoke('course:openFile', { filePath })
+  const openAssignment = (url) => {
+    window.electron?.ipcRenderer.invoke('assignment:open', { url })
   }
 
   const handleSync = () => {
@@ -110,7 +134,7 @@ export default function LecturePage() {
       }}
     >
       <div style={{ fontSize: 22, fontWeight: 700, color: TITLE_COLOR, marginBottom: 20 }}>
-        강의자료
+        과제
       </div>
 
       <div style={{ width: '100%', maxWidth: 560, flex: 1, overflowY: 'auto', padding: '0 24px' }}>
@@ -120,11 +144,11 @@ export default function LecturePage() {
             <span>불러오는 중…</span>
           </CenterState>
         ) : courses.length === 0 ? (
-          <CenterState>다운로드된 강의자료가 없습니다</CenterState>
+          <CenterState>과제 정보가 없습니다</CenterState>
         ) : (
           courses.map((course) => {
             const isOpen = expanded.has(course.name)
-            const files = filesByCourse[course.name]
+            const items = itemsByCourse[course.name]
 
             return (
               <div
@@ -152,33 +176,69 @@ export default function LecturePage() {
 
                 {isOpen && (
                   <div style={{ padding: 6, background: '#fff' }}>
-                    {files === 'loading' || files === undefined ? (
-                      <div style={filePlaceholderStyle}>불러오는 중…</div>
-                    ) : files.length === 0 ? (
-                      <div style={filePlaceholderStyle}>다운로드된 파일이 없습니다</div>
+                    {items === 'loading' || items === undefined ? (
+                      <div style={itemPlaceholderStyle}>불러오는 중…</div>
+                    ) : items.length === 0 ? (
+                      <div style={itemPlaceholderStyle}>과제가 없습니다</div>
                     ) : (
-                      files.map((file) => {
-                        const Icon = iconForFile(file.name)
+                      items.map((item) => {
+                        const status = statusInfo(item)
                         return (
                           <div
-                            key={file.path}
-                            onClick={() => openFile(file.path)}
-                            style={fileRowStyle}
+                            key={item.assignmentId}
+                            onClick={() => openAssignment(item.htmlUrl)}
+                            style={itemRowStyle}
                             onMouseEnter={(e) => (e.currentTarget.style.background = '#f7f7f7')}
                             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                           >
-                            <Icon size={17} color="#999" style={{ flexShrink: 0 }} />
-                            <span
+                            <div
                               style={{
-                                fontSize: 13,
-                                color: '#3a3a3a',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 8
                               }}
                             >
-                              {file.name}
-                            </span>
+                              <span
+                                style={{
+                                  fontSize: 13,
+                                  color: '#3a3a3a',
+                                  fontWeight: 600,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  flex: 1
+                                }}
+                              >
+                                {item.title}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  color: status.color,
+                                  flexShrink: 0
+                                }}
+                              >
+                                {status.label}
+                              </span>
+                            </div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                marginTop: 3,
+                                color: '#999',
+                                fontSize: 11.5
+                              }}
+                            >
+                              <BiTimeFive size={13} />
+                              <span>{formatDueDate(item.dueAt)}</span>
+                              {typeof item.pointsPossible === 'number' && (
+                                <span>· {item.pointsPossible}점</span>
+                              )}
+                            </div>
                           </div>
                         )
                       })
@@ -254,7 +314,7 @@ function toggleHeaderStyle(isOpen) {
     gap: 8,
     padding: '14px 16px',
     border: 'none',
-    background: isOpen ? ACCENT : '#fffbe0',
+    background: isOpen ? ACCENT : '#fff6ea',
     color: '#3a3a3a',
     fontSize: 14,
     fontWeight: 700,
@@ -275,7 +335,7 @@ const centerStateStyle = {
   paddingTop: 60
 }
 
-const filePlaceholderStyle = {
+const itemPlaceholderStyle = {
   padding: '10px 10px',
   color: '#bbb',
   fontSize: 13
@@ -293,14 +353,11 @@ function syncButtonStyle(syncing) {
     background: syncing ? '#eee' : TITLE_COLOR,
     color: syncing ? '#999' : '#fff',
     cursor: syncing ? 'default' : 'pointer',
-    boxShadow: syncing ? 'none' : '0 4px 12px rgba(254,116,138,0.4)'
+    boxShadow: syncing ? 'none' : '0 4px 12px rgba(254,164,67,0.4)'
   }
 }
 
-const fileRowStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10,
+const itemRowStyle = {
   padding: '9px 10px',
   borderRadius: 10,
   cursor: 'pointer',

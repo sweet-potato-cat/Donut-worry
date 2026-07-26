@@ -14,6 +14,7 @@ async function printUsage() {
   console.log('  --deep  Use slower fallback clicks for hard-to-open external tool materials')
   console.log('  --assignments-only  Collect assignments without scanning weekly-learning pages')
   console.log('  --notices-only  Collect notices without scanning weekly-learning pages')
+  console.log('  --grading-only  Collect grading weights from course syllabuses')
 }
 
 function hasCliFlag(name) {

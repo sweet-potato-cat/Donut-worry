@@ -19,12 +19,26 @@ const CHANNELS = [
   'assignment:sync',
   'assignment:getAll',
   'assignment:complete',
+  'assignment:listCourses',
+  'assignment:listByCourse',
+  'assignment:open',
   'video:sync',
   'video:getAll',
+  'video:listCourses',
+  'video:listByCourse',
+  'video:open',
   'notice:sync',
   'notice:getAll',
   'notice:read',
-  'sync:all'
+  'notice:list',
+  'notice:open',
+  'sync:all',
+  'settings:get',
+  'settings:setMainHotkey',
+  'settings:resetMainHotkey',
+  'timetable:list',
+  'timetable:add',
+  'timetable:remove'
 ]
 
 export function registerIpcHandlers() {

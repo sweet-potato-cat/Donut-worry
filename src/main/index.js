@@ -4,8 +4,11 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { uIOhook, UiohookKey } from 'uiohook-napi'
 import { registerIpcHandlers } from './ipc.js'
 import { stopSync } from './courses.js'
+import { getMainHotkey } from './settings.js'
+import { startScheduler, stopScheduler } from './scheduler.js'
 
 let mainWindow = null
+let preferencesWindow = null
 
 const DONUT_SIZE = 500
 
@@ -42,6 +45,41 @@ function createWindow() {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  }
+}
+
+function createPreferencesWindow() {
+  if (preferencesWindow) {
+    preferencesWindow.show()
+    preferencesWindow.focus()
+    return
+  }
+
+  preferencesWindow = new BrowserWindow({
+    width: 640,
+    height: 520,
+    minWidth: 560,
+    minHeight: 440,
+    title: '환경설정',
+    backgroundColor: '#1c1c1e',
+    autoHideMenuBar: true,
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 16 } }
+      : {}),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  preferencesWindow.on('closed', () => {
+    preferencesWindow = null
+  })
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    preferencesWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/preferences.html`)
+  } else {
+    preferencesWindow.loadFile(join(__dirname, '../renderer/preferences.html'))
   }
 }
 
@@ -103,13 +141,15 @@ function normalizeKeycode(keycode) {
   return keycode
 }
 
-// mac: Option(Alt)+Space, Windows: Ctrl+Alt+D
+// mac 기본값: Option(Alt)+Space, Windows 기본값: Ctrl+Alt+D
 // 두 경우 모두 "누르고 있는 동안" 도넛을 표시해야 하므로, keyup을 감지 못하는
 // globalShortcut 대신 uiohook으로 keydown/keyup을 직접 추적한다.
-const HOLD_COMBO =
-  process.platform === 'darwin'
-    ? [UiohookKey.Alt, UiohookKey.Space]
-    : [UiohookKey.Ctrl, UiohookKey.Alt, UiohookKey.D]
+// 환경설정에서 언제든 바꿀 수 있으므로 상수로 캐싱하지 않고 매번 settings에서 읽는다.
+function getHoldCombo() {
+  return getMainHotkey()
+    .map((name) => UiohookKey[name])
+    .filter((code) => code !== undefined)
+}
 
 // Sub 도넛(강의자료/과제/동영상)도 Main 도넛과 동일하게 누르고 있는 동안만 표시
 const SUB_HOLD_COMBOS =
@@ -130,7 +170,8 @@ function isComboActive(keys) {
 }
 
 function isHoldComboActive() {
-  return isComboActive(HOLD_COMBO)
+  const combo = getHoldCombo()
+  return combo.length > 0 && isComboActive(combo)
 }
 
 function registerHoldListener() {
@@ -192,6 +233,8 @@ app.whenReady().then(() => {
   registerWindowIpc()
   createWindow()
   registerHoldListener()
+  startScheduler()
+  globalShortcut.register('CommandOrControl+,', createPreferencesWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -208,4 +251,5 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll()
   uIOhook.stop()
   stopSync()
+  stopScheduler()
 })

@@ -5,6 +5,7 @@ import * as courses from './courses.js'
 import * as assignments from './assignments.js'
 import * as videos from './videos.js'
 import * as notices from './notices.js'
+import * as settings from './settings.js'
 
 /**
  * core.js — Fan-in 중앙 라우터
@@ -128,6 +129,31 @@ const handlers = {
   'notice:open': async ({ url }) => {
     await notices.openNotice(url)
     return { success: true }
+  },
+
+  // ── 환경설정(단축키/시간표) ────────────────────────────
+  'settings:get': async () => {
+    return settings.getSettings()
+  },
+
+  'settings:setMainHotkey': async ({ keys }) => {
+    return settings.setMainHotkey(keys)
+  },
+
+  'settings:resetMainHotkey': async () => {
+    return settings.resetMainHotkey()
+  },
+
+  'timetable:list': async () => {
+    return settings.listTimetable()
+  },
+
+  'timetable:add': async ({ day, time, label }) => {
+    return settings.addTimetableEntry({ day, time, label })
+  },
+
+  'timetable:remove': async ({ id }) => {
+    return settings.removeTimetableEntry(id)
   },
 
   // ── 전체 동기화 ────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, globalShortcut, screen, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, globalShortcut, screen, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { uIOhook, UiohookKey } from 'uiohook-napi'
@@ -206,7 +206,18 @@ function registerHoldListener() {
     }
   })
 
-  uIOhook.start()
+  // uiohook의 native start()는 Accessibility 권한이 없으면 동기적으로 예외를
+  // 던진다. 여기서 잡지 않으면 app.whenReady() 콜백 나머지(단축키 등록,
+  // 스케줄러 시작 등)가 통째로 실행되지 않아 앱이 아무 반응 없이 켜진 것처럼 보임
+  try {
+    uIOhook.start()
+  } catch (err) {
+    dialog.showErrorBox(
+      '단축키를 사용할 수 없습니다',
+      `키보드 입력을 감지하지 못했습니다: ${err.message}\n\n` +
+        '시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용에서 donut-worry 권한을 껐다가 다시 켠 뒤, 앱을 완전히 종료하고 재실행해주세요.'
+    )
+  }
 }
 
 function registerWindowIpc() {

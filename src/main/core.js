@@ -6,6 +6,7 @@ import * as assignments from './assignments.js'
 import * as videos from './videos.js'
 import * as notices from './notices.js'
 import * as settings from './settings.js'
+import * as grading from './grading.js'
 
 /**
  * core.js — Fan-in 중앙 라우터
@@ -154,6 +155,11 @@ const handlers = {
 
   'timetable:remove': async ({ id }) => {
     return settings.removeTimetableEntry(id)
+  },
+
+  // ── 성적 계산기(scraper-output/grading-weights.json) ────
+  'grading:listCourses': async () => {
+    return grading.listGradingCourses()
   },
 
   // ── 전체 동기화 ────────────────────────────────────────

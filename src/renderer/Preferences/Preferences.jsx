@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { BiKey, BiCalendarWeek } from 'react-icons/bi'
+import { BiKey, BiCalendarWeek, BiCalculator } from 'react-icons/bi'
 import ShortcutsTab from './ShortcutsTab'
 import TimetableTab from './TimetableTab'
+import GradingCalculatorTab from './GradingCalculatorTab'
 
 const ACCENT = '#fe748a'
 const BG = '#170f12'
@@ -11,7 +12,8 @@ const MUTED = '#b09098'
 
 const TABS = [
   { id: 'shortcuts', label: '단축키', icon: BiKey, Component: ShortcutsTab },
-  { id: 'timetable', label: '시간표', icon: BiCalendarWeek, Component: TimetableTab }
+  { id: 'timetable', label: '시간표', icon: BiCalendarWeek, Component: TimetableTab },
+  { id: 'grading', label: '성적계산기', icon: BiCalculator, Component: GradingCalculatorTab }
 ]
 
 export default function Preferences() {

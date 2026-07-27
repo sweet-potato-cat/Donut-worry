@@ -38,7 +38,8 @@ const CHANNELS = [
   'settings:resetMainHotkey',
   'timetable:list',
   'timetable:add',
-  'timetable:remove'
+  'timetable:remove',
+  'grading:listCourses'
 ]
 
 export function registerIpcHandlers() {

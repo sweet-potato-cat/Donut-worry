@@ -4,7 +4,7 @@ import {
   createCourseOrderMap
 } from '../utils/sort-utils.mjs'
 
-const videoTypes = new Set(['movie', 'video', 'vod'])
+const videoTypes = new Set(['movie', 'video', 'vod', 'everlec'])
 const completedStatuses = new Set(['\ucd9c\uc11d', 'completed', 'complete'])
 
 function isVideoItem(item) {

@@ -58,23 +58,23 @@ const MODIFIER_NAMES = new Set([
 ])
 
 const LABELS = {
-  Ctrl: '⌃',
-  CtrlRight: '⌃',
-  Alt: '⌥',
-  AltRight: '⌥',
-  Shift: '⇧',
-  ShiftRight: '⇧',
-  Meta: '⌘',
-  MetaRight: '⌘',
+  Ctrl: 'Ctrl',
+  CtrlRight: 'Ctrl',
+  Alt: 'Alt',
+  AltRight: 'Alt',
+  Shift: 'Shift',
+  ShiftRight: 'Shift',
+  Meta: 'Meta',
+  MetaRight: 'Meta',
   Space: 'Space',
   Tab: 'Tab',
   Enter: 'Enter',
-  Backspace: '⌫',
+  Backspace: 'Backspace',
   CapsLock: 'Caps',
-  ArrowLeft: '←',
-  ArrowRight: '→',
-  ArrowUp: '↑',
-  ArrowDown: '↓',
+  ArrowLeft: 'ArrowLeft',
+  ArrowRight: 'ArrowRight',
+  ArrowUp: 'ArrowUp',
+  ArrowDown: 'ArrowDown',
   Comma: ',',
   Period: '.',
   Semicolon: ';',
@@ -116,5 +116,5 @@ export function comboToLabel(keys) {
   if (!keys || keys.length === 0) return '설정 안 됨'
   const modifiers = MODIFIER_ORDER.filter((name) => keys.includes(name))
   const rest = keys.filter((name) => !isModifierKey(name))
-  return [...modifiers, ...rest].map(keyLabel).join(' ')
+  return [...modifiers, ...rest].map(keyLabel).join(' + ')
 }

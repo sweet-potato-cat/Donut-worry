@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { BiLoaderAlt } from 'react-icons/bi'
+import { BiArrowBack, BiLoaderAlt } from 'react-icons/bi'
 import { iconForFile } from '../../utils/fileIcons'
 
 const PANEL_SIZE = 400
 
-export default function CourseFileList({ courseName, color }) {
+export default function CourseFileList({ courseName, color, onBack }) {
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -50,6 +50,23 @@ export default function CourseFileList({ courseName, color }) {
           flexShrink: 0
         }}
       >
+        <button
+          onClick={onBack}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 28,
+            height: 28,
+            border: 'none',
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.6)',
+            cursor: 'pointer',
+            flexShrink: 0
+          }}
+        >
+          <BiArrowBack size={16} color="#3a3a3a" />
+        </button>
         <div
           style={{
             fontSize: 15,

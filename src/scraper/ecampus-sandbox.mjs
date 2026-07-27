@@ -15,7 +15,7 @@ import { collectGradingWeightRecords } from './features/grading.mjs'
 import { collectNoticeRecords } from './features/notices.mjs'
 import { collectVideoRecords } from './features/videos.mjs'
 import { getCliOption, hasCliFlag, printUsage } from './utils/cli-utils.mjs'
-import { uniqueBy } from './utils/file-utils.mjs'
+import { sanitizeFileName, uniqueBy } from './utils/file-utils.mjs'
 
 // preferHeadless가 true면 창 없이 실행하되, 저장된 세션이 만료되어 로그인이
 // 필요한 경우에만 로그인용 브라우저 창을 자동으로 띄움
@@ -167,7 +167,7 @@ async function runLiveCollector() {
 
   const courseFilter = getCliOption('--course')
   const courses = (await collectCoursesFromDashboard(page)).filter(
-    (course) => !courseFilter || course.courseName.includes(courseFilter)
+    (course) => !courseFilter || courseNameMatchesFilter(course.courseName, courseFilter)
   )
 
   console.log(`Found ${courses.length} courses from dashboard.`)
@@ -250,16 +250,20 @@ async function runLiveCollector() {
   await writeFile(outputPath, JSON.stringify(materials, null, 2))
   await writeFile(weeklyItemsPath, JSON.stringify(weeklyItems, null, 2))
   await writeFile(weeklyMaterialItemsPath, JSON.stringify(weeklyMaterialItems, null, 2))
-  await writeFile(videosPath, JSON.stringify(videos, null, 2))
-  await writeFile(incompleteVideosPath, JSON.stringify(incompleteVideos, null, 2))
+  if (!materialsOnly) {
+    await writeFile(videosPath, JSON.stringify(videos, null, 2))
+    await writeFile(incompleteVideosPath, JSON.stringify(incompleteVideos, null, 2))
+  }
 
   console.log(`Found ${weeklyItems.length} weekly-learning items.`)
   console.log(`Saved to ${weeklyItemsPath}`)
   console.log(`Found ${weeklyMaterialItems.length} weekly material items.`)
   console.log(`Saved to ${weeklyMaterialItemsPath}`)
-  console.log(`Found ${videos.length} video items (${incompleteVideos.length} below 100%).`)
-  console.log(`Saved to ${videosPath}`)
-  console.log(`Saved to ${incompleteVideosPath}`)
+  if (!materialsOnly) {
+    console.log(`Found ${videos.length} video items (${incompleteVideos.length} below 100%).`)
+    console.log(`Saved to ${videosPath}`)
+    console.log(`Saved to ${incompleteVideosPath}`)
+  }
   console.log(`Found ${materials.length} material link candidates.`)
   console.log(`Saved to ${outputPath}`)
 
@@ -268,6 +272,20 @@ async function runLiveCollector() {
   }
 
   await browserContext.close()
+}
+
+function courseNameMatchesFilter(courseName, courseFilter) {
+  const normalizedCourseName = String(courseName ?? '').trim()
+  const normalizedFilter = String(courseFilter ?? '').trim()
+  const sanitizedCourseName = sanitizeFileName(normalizedCourseName)
+  const sanitizedFilter = sanitizeFileName(normalizedFilter)
+
+  return (
+    normalizedCourseName.includes(normalizedFilter) ||
+    normalizedCourseName.includes(sanitizedFilter) ||
+    sanitizedCourseName.includes(normalizedFilter) ||
+    sanitizedCourseName.includes(sanitizedFilter)
+  )
 }
 
 async function main() {

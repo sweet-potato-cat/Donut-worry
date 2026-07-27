@@ -16,8 +16,6 @@ export default function App() {
   const [activeSubDonut, setActiveSubDonut] = useState(null) // null | 0(강의자료) | 1(과제) | 2(동영상)
   const [page, setPage] = useState(null) // null | 0~3 (Option+Space 떼는 순간 확정된 페이지)
   const [donutCursor, setDonutCursor] = useState(null) // 도넛이 다시 보일 때의 창 기준 커서 좌표
-  const [subDonutCursor, setSubDonutCursor] = useState(null) // Sub 도넛이 다시 보일 때의 창 기준 커서 좌표
-  const [subDonutOpenSeq, setSubDonutOpenSeq] = useState(0) // Sub 도넛을 열 때마다 증가 — 과목 목록은 유지한 채 이전 드릴다운/호버 상태만 초기화하는 신호
   const hoveredIndexRef = useRef(null)
 
   const handleHoverChange = (index) => {
@@ -36,16 +34,9 @@ export default function App() {
     return () => window.electron?.ipcRenderer.removeListener('main:show', handler)
   }, [])
 
-  // cmd+1~3 → Sub 도넛 열기 (매번 새로 마운트시켜 이전 드릴다운 상태가 남지 않도록 함)
-  // Main 도넛에서 선택해 페이지(page)가 떠 있던 상태였을 수 있으므로 함께 리셋한다
-  // (안 그러면 ActivePage 우선순위에 가려 Sub 도넛이 렌더되지 않음)
+  // cmd+1~3 → Sub 도넛 열기
   useEffect(() => {
-    const handler = (_e, { index, cursor }) => {
-      setPage(null)
-      setActiveSubDonut(index)
-      setSubDonutCursor(cursor ?? null)
-      setSubDonutOpenSeq((n) => n + 1)
-    }
+    const handler = (_e, { index }) => setActiveSubDonut(index)
     window.electron?.ipcRenderer.on('subdonut:open', handler)
     return () => window.electron?.ipcRenderer.removeListener('subdonut:open', handler)
   }, [])
@@ -111,7 +102,7 @@ export default function App() {
         </div>
       ) : ActiveSubDonut ? (
         <div style={{ WebkitAppRegion: 'no-drag' }}>
-          <ActiveSubDonut openSeq={subDonutOpenSeq} initialCursor={subDonutCursor} />
+          <ActiveSubDonut onSelect={() => {}} />
         </div>
       ) : (
         <div style={{ WebkitAppRegion: 'no-drag' }}>

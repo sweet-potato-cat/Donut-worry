@@ -12,6 +12,12 @@ let preferencesWindow = null
 
 const DONUT_SIZE = 500
 
+function getResourcePath(...paths) {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'app.asar.unpacked', 'resources', ...paths)
+    : join(app.getAppPath(), 'resources', ...paths)
+}
+
 function getPageSize() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize
   return { width: Math.round(width * 0.7), height: Math.round(height * 0.7) }
@@ -61,6 +67,7 @@ function createPreferencesWindow() {
     minWidth: 560,
     minHeight: 440,
     title: '환경설정',
+    icon: getResourcePath('icon.png'),
     backgroundColor: '#1c1c1e',
     autoHideMenuBar: true,
     ...(process.platform === 'darwin'
@@ -84,6 +91,7 @@ function createPreferencesWindow() {
 }
 
 let donutHeld = false
+let preferencesHeld = false
 const heldKeys = new Set()
 
 // 창 재배치 직후 OS 커서 위치를 창 기준 좌표로 변환
@@ -110,6 +118,7 @@ function positionWindowAtCursor() {
 
 function showDonutWindow() {
   if (!mainWindow) return
+  activeSubDonutIndex = null
   mainWindow.setSize(DONUT_SIZE, DONUT_SIZE)
   positionWindowAtCursor()
   // 창을 보이기 전에 렌더러 상태부터 리셋시켜, 숨겨져 있던 동안 남아있던
@@ -120,17 +129,28 @@ function showDonutWindow() {
 
 function hideDonutWindow() {
   if (!mainWindow) return
+  activeSubDonutIndex = null
+  donutHeld = false
+  preferencesHeld = false
   mainWindow.hide()
 }
 
-let subDonutHeldIndex = null
+let activeSubDonutIndex = null
 
-function showSubDonutWindow(index) {
+function openSubDonut(index) {
   if (!mainWindow) return
+
+  if (mainWindow.isVisible() && activeSubDonutIndex === index) {
+    activeSubDonutIndex = null
+    hideDonutWindow()
+    return
+  }
+
+  activeSubDonutIndex = index
   mainWindow.setSize(DONUT_SIZE, DONUT_SIZE)
-  positionWindowAtCursor()
-  mainWindow.webContents.send('subdonut:open', { index, cursor: getCursorPointInWindow() })
+  mainWindow.center()
   mainWindow.show()
+  mainWindow.webContents.send('subdonut:open', { index })
 }
 
 // 우측 Ctrl/Alt/Cmd도 좌측과 동일하게 취급 (사용자가 어느 쪽을 누르든 조합이 성립하도록)
@@ -152,19 +172,6 @@ function getHoldCombo() {
 }
 
 // Sub 도넛(강의자료/과제/동영상)도 Main 도넛과 동일하게 누르고 있는 동안만 표시
-const SUB_HOLD_COMBOS =
-  process.platform === 'darwin'
-    ? [
-        { index: 0, keys: [UiohookKey.Meta, UiohookKey[1]] },
-        { index: 1, keys: [UiohookKey.Meta, UiohookKey[2]] },
-        { index: 2, keys: [UiohookKey.Meta, UiohookKey[3]] }
-      ]
-    : [
-        { index: 0, keys: [UiohookKey.Ctrl, UiohookKey.Alt, UiohookKey[1]] },
-        { index: 1, keys: [UiohookKey.Ctrl, UiohookKey.Alt, UiohookKey[2]] },
-        { index: 2, keys: [UiohookKey.Ctrl, UiohookKey.Alt, UiohookKey[3]] }
-      ]
-
 function isComboActive(keys) {
   return keys.every((key) => heldKeys.has(key))
 }
@@ -174,21 +181,66 @@ function isHoldComboActive() {
   return combo.length > 0 && isComboActive(combo)
 }
 
+function isPreferencesComboActive() {
+  const modifier = process.platform === 'darwin' ? UiohookKey.Meta : UiohookKey.Ctrl
+  return isComboActive([modifier, UiohookKey.Comma])
+}
+
+function registerPreferencesShortcut() {
+  const accelerators = ['CommandOrControl+,', 'CommandOrControl+Comma']
+
+  for (const accelerator of accelerators) {
+    try {
+      if (globalShortcut.register(accelerator, createPreferencesWindow)) return
+    } catch (err) {
+      console.warn(`[preferences] Failed to register ${accelerator}: ${err.message}`)
+    }
+  }
+
+  console.warn('[preferences] Falling back to uiohook for preferences shortcut')
+}
+
+function registerSubDonutShortcuts() {
+  const accelerators =
+    process.platform === 'darwin'
+      ? [
+          { index: 0, accelerator: 'Command+1' },
+          { index: 1, accelerator: 'Command+2' },
+          { index: 2, accelerator: 'Command+3' }
+        ]
+      : [
+          { index: 0, accelerator: 'Control+Alt+1' },
+          { index: 1, accelerator: 'Control+Alt+2' },
+          { index: 2, accelerator: 'Control+Alt+3' }
+        ]
+
+  for (const { index, accelerator } of accelerators) {
+    try {
+      const registered = globalShortcut.register(accelerator, () => {
+        openSubDonut(index)
+      })
+
+      if (!registered) {
+        console.warn(`[subdonut] Failed to register ${accelerator}`)
+      }
+    } catch (err) {
+      console.warn(`[subdonut] Failed to register ${accelerator}: ${err.message}`)
+    }
+  }
+}
+
 function registerHoldListener() {
   uIOhook.on('keydown', (e) => {
     heldKeys.add(normalizeKeycode(e.keycode))
 
+    if (isPreferencesComboActive() && !preferencesHeld) {
+      preferencesHeld = true
+      createPreferencesWindow()
+    }
+
     if (isHoldComboActive() && !donutHeld) {
       donutHeld = true
       showDonutWindow()
-    }
-
-    if (subDonutHeldIndex === null) {
-      const combo = SUB_HOLD_COMBOS.find((c) => isComboActive(c.keys))
-      if (combo) {
-        subDonutHeldIndex = combo.index
-        showSubDonutWindow(combo.index)
-      }
     }
   })
 
@@ -200,9 +252,8 @@ function registerHoldListener() {
       mainWindow?.webContents.send('main:confirm')
     }
 
-    if (subDonutHeldIndex !== null && !isComboActive(SUB_HOLD_COMBOS[subDonutHeldIndex].keys)) {
-      subDonutHeldIndex = null
-      mainWindow?.webContents.send('subdonut:confirm')
+    if (preferencesHeld && !isPreferencesComboActive()) {
+      preferencesHeld = false
     }
   })
 
@@ -234,7 +285,8 @@ app.whenReady().then(() => {
   createWindow()
   registerHoldListener()
   startScheduler()
-  globalShortcut.register('CommandOrControl+,', createPreferencesWindow)
+  registerPreferencesShortcut()
+  registerSubDonutShortcuts()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

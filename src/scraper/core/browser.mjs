@@ -20,6 +20,57 @@ async function navigateAndCheckAuth(page, targetUrl) {
   return isCanvasApiAuthenticated(page)
 }
 
+// 세션 만료 시 headless 상태를 유지한 채 저장된 자격증명으로 로그인 폼을 직접
+// 채워 제출. 자격증명이 없거나 로그인 폼을 찾지 못하면 false를 반환해 호출부가
+// 사람이 로그인할 수 있는 창을 띄우는 기존 흐름으로 넘어가게 함
+async function attemptAutoLogin(page, targetUrl) {
+  const id = process.env.KHU_LOGIN_ID
+  const password = process.env.KHU_LOGIN_PASSWORD
+  if (!id || !password) {
+    console.log('Automatic login skipped: no saved credentials.')
+    return false
+  }
+
+  const idField = page.locator('#login_user_id')
+  const passwordField = page.locator('#login_user_password')
+
+  if ((await idField.count()) === 0 || (await passwordField.count()) === 0) {
+    console.log(`Automatic login skipped: login form not found (url: ${page.url()}).`)
+    return false
+  }
+
+  console.log('Attempting automatic login...')
+
+  const onDialog = (dialog) => dialog.dismiss().catch(() => {})
+  page.on('dialog', onDialog)
+
+  try {
+    await idField.fill(id)
+    await passwordField.fill(password)
+    // 로그인 버튼 클릭(synthetic click)은 이 사이트의 실제 제출 로직을 태우지 못함 —
+    // 버튼에는 별도 클릭 핸들러가 없고, 페이지의 OnLogon()이 CSRF 토큰을 쿠키에서
+    // 읽어 채운 뒤 제출 대상 URL을 gw-cb.php로 바꿔서 폼을 제출하는 구조라
+    // 그 함수를 직접 호출해야 실제 로그인 요청이 나감
+    await Promise.all([
+      page.waitForLoadState('networkidle').catch(() => {}),
+      page.evaluate(() => window.OnLogon())
+    ])
+  } catch (error) {
+    console.log(`Automatic login submit failed: ${error.message}`)
+    return false
+  } finally {
+    page.off('dialog', onDialog)
+  }
+
+  const authenticated = await navigateAndCheckAuth(page, targetUrl)
+  if (!authenticated) {
+    console.log(
+      `Automatic login did not result in an authenticated session (landed on: ${page.url()}, title: "${await page.title().catch(() => '?')}").`
+    )
+  }
+  return authenticated
+}
+
 async function waitForCanvasLogin(page, targetUrl) {
   if (await navigateAndCheckAuth(page, targetUrl)) return
 
@@ -65,4 +116,4 @@ async function isCanvasApiAuthenticated(page) {
   }
 }
 
-export { getPlaywright, waitForCanvasLogin, navigateAndCheckAuth }
+export { getPlaywright, waitForCanvasLogin, navigateAndCheckAuth, attemptAutoLogin }

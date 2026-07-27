@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { spawn } from 'child_process'
 import { shell, BrowserWindow } from 'electron'
+import { getDecryptedCredentials } from './credentials.js'
 
 const COURSES_ROOT = path.resolve('scraper-output', 'courses')
 const PROJECT_ROOT = process.cwd()
@@ -152,10 +153,16 @@ export function startSync() {
 
   let timedOut = false
 
+  const credentials = getDecryptedCredentials()
+  const env = credentials
+    ? { ...process.env, KHU_LOGIN_ID: credentials.id, KHU_LOGIN_PASSWORD: credentials.password }
+    : process.env
+
   syncChild = spawn(NPM_BIN, ['run', 'scrape:download', '--', '--headless'], {
     cwd: PROJECT_ROOT,
     stdio: ['ignore', 'pipe', 'pipe'],
-    windowsHide: true
+    windowsHide: true,
+    env
   })
 
   syncTimeout = setTimeout(() => {

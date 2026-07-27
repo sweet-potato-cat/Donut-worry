@@ -39,7 +39,10 @@ const CHANNELS = [
   'timetable:list',
   'timetable:add',
   'timetable:remove',
-  'grading:listCourses'
+  'grading:listCourses',
+  'credentials:get',
+  'credentials:save',
+  'credentials:clear'
 ]
 
 export function registerIpcHandlers() {

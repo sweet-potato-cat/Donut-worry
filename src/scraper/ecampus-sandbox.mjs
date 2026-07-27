@@ -2,7 +2,12 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import { dashboardUrl, outputRoot } from './core/constants.mjs'
-import { getPlaywright, waitForCanvasLogin, navigateAndCheckAuth } from './core/browser.mjs'
+import {
+  getPlaywright,
+  waitForCanvasLogin,
+  navigateAndCheckAuth,
+  attemptAutoLogin
+} from './core/browser.mjs'
 import { collectCoursesFromDashboard } from './core/courses.mjs'
 import {
   collectLinksWithFallback,
@@ -33,6 +38,11 @@ async function launchAuthenticatedContext(preferHeadless) {
   }
 
   if (await navigateAndCheckAuth(page, dashboardUrl)) {
+    return { browserContext, page }
+  }
+
+  if (preferHeadless && (await attemptAutoLogin(page, dashboardUrl))) {
+    console.log('Automatic login succeeded.')
     return { browserContext, page }
   }
 

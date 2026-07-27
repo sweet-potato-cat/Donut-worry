@@ -7,6 +7,7 @@ import * as videos from './videos.js'
 import * as notices from './notices.js'
 import * as settings from './settings.js'
 import * as grading from './grading.js'
+import * as credentials from './credentials.js'
 
 /**
  * core.js — Fan-in 중앙 라우터
@@ -160,6 +161,19 @@ const handlers = {
   // ── 성적 계산기(scraper-output/grading-weights.json) ────
   'grading:listCourses': async () => {
     return grading.listGradingCourses()
+  },
+
+  // ── e-campus 자동로그인 계정 ─────────────────────────────
+  'credentials:get': async () => {
+    return credentials.getCredentialsStatus()
+  },
+
+  'credentials:save': async ({ id, password }) => {
+    return credentials.saveCredentials({ id, password })
+  },
+
+  'credentials:clear': async () => {
+    return credentials.clearCredentials()
   },
 
   // ── 전체 동기화 ────────────────────────────────────────

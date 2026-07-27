@@ -17,6 +17,7 @@ nsis:
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+afterSign: build/afterSign.js
 mac:
   identity: null
   entitlementsInherit: build/entitlements.mac.plist

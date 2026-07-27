@@ -32,7 +32,14 @@ const CHANNELS = [
   'notice:read',
   'notice:list',
   'notice:open',
-  'sync:all'
+  'sync:all',
+  'settings:get',
+  'settings:setMainHotkey',
+  'settings:resetMainHotkey',
+  'timetable:list',
+  'timetable:add',
+  'timetable:remove',
+  'grading:listCourses'
 ]
 
 export function registerIpcHandlers() {

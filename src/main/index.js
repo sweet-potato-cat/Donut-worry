@@ -4,8 +4,11 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { uIOhook, UiohookKey } from 'uiohook-napi'
 import { registerIpcHandlers } from './ipc.js'
 import { stopSync } from './courses.js'
+import { getMainHotkey } from './settings.js'
+import { startScheduler, stopScheduler } from './scheduler.js'
 
 let mainWindow = null
+let preferencesWindow = null
 
 const DONUT_SIZE = 500
 
@@ -45,6 +48,41 @@ function createWindow() {
   }
 }
 
+function createPreferencesWindow() {
+  if (preferencesWindow) {
+    preferencesWindow.show()
+    preferencesWindow.focus()
+    return
+  }
+
+  preferencesWindow = new BrowserWindow({
+    width: 640,
+    height: 520,
+    minWidth: 560,
+    minHeight: 440,
+    title: '환경설정',
+    backgroundColor: '#1c1c1e',
+    autoHideMenuBar: true,
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 16 } }
+      : {}),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  preferencesWindow.on('closed', () => {
+    preferencesWindow = null
+  })
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    preferencesWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/preferences.html`)
+  } else {
+    preferencesWindow.loadFile(join(__dirname, '../renderer/preferences.html'))
+  }
+}
+
 let donutHeld = false
 const heldKeys = new Set()
 
@@ -57,56 +95,83 @@ function getCursorPointInWindow() {
   return { x: x - bounds.x, y: y - bounds.y }
 }
 
+// 창 중심이 현재 마우스 커서 위치에 오도록 배치 (모니터 작업영역을 벗어나지 않게 clamp)
+function positionWindowAtCursor() {
+  if (!mainWindow) return
+  const cursor = screen.getCursorScreenPoint()
+  const [width, height] = mainWindow.getSize()
+  const { x: dx, y: dy, width: dw, height: dh } = screen.getDisplayNearestPoint(cursor).workArea
+
+  const x = Math.max(dx, Math.min(Math.round(cursor.x - width / 2), dx + dw - width))
+  const y = Math.max(dy, Math.min(Math.round(cursor.y - height / 2), dy + dh - height))
+
+  mainWindow.setPosition(x, y)
+}
+
 function showDonutWindow() {
   if (!mainWindow) return
-  activeSubDonutIndex = null
   mainWindow.setSize(DONUT_SIZE, DONUT_SIZE)
-  mainWindow.center()
-  mainWindow.show()
+  positionWindowAtCursor()
+  // 창을 보이기 전에 렌더러 상태부터 리셋시켜, 숨겨져 있던 동안 남아있던
+  // 이전 화면이 한 프레임이라도 먼저 노출되지 않게 한다
   mainWindow.webContents.send('main:show', getCursorPointInWindow())
+  mainWindow.show()
 }
 
 function hideDonutWindow() {
   if (!mainWindow) return
-  activeSubDonutIndex = null
   mainWindow.hide()
 }
 
-let activeSubDonutIndex = null
+let subDonutHeldIndex = null
 
-function openSubDonut(index) {
+function showSubDonutWindow(index) {
   if (!mainWindow) return
-
-  if (mainWindow.isVisible() && activeSubDonutIndex === index) {
-    activeSubDonutIndex = null
-    hideDonutWindow()
-    return
-  }
-
-  activeSubDonutIndex = index
   mainWindow.setSize(DONUT_SIZE, DONUT_SIZE)
-  mainWindow.center()
+  positionWindowAtCursor()
+  mainWindow.webContents.send('subdonut:open', { index, cursor: getCursorPointInWindow() })
   mainWindow.show()
-  mainWindow.webContents.send('subdonut:open', { index })
 }
 
-// 우측 Ctrl/Alt도 좌측과 동일하게 취급 (사용자가 어느 쪽을 누르든 조합이 성립하도록)
+// 우측 Ctrl/Alt/Cmd도 좌측과 동일하게 취급 (사용자가 어느 쪽을 누르든 조합이 성립하도록)
 function normalizeKeycode(keycode) {
   if (keycode === UiohookKey.CtrlRight) return UiohookKey.Ctrl
   if (keycode === UiohookKey.AltRight) return UiohookKey.Alt
+  if (keycode === UiohookKey.MetaRight) return UiohookKey.Meta
   return keycode
 }
 
-// mac: Option(Alt)+Space, Windows: Ctrl+Alt+D
+// mac 기본값: Option(Alt)+Space, Windows 기본값: Ctrl+Alt+D
 // 두 경우 모두 "누르고 있는 동안" 도넛을 표시해야 하므로, keyup을 감지 못하는
 // globalShortcut 대신 uiohook으로 keydown/keyup을 직접 추적한다.
-const HOLD_COMBO =
+// 환경설정에서 언제든 바꿀 수 있으므로 상수로 캐싱하지 않고 매번 settings에서 읽는다.
+function getHoldCombo() {
+  return getMainHotkey()
+    .map((name) => UiohookKey[name])
+    .filter((code) => code !== undefined)
+}
+
+// Sub 도넛(강의자료/과제/동영상)도 Main 도넛과 동일하게 누르고 있는 동안만 표시
+const SUB_HOLD_COMBOS =
   process.platform === 'darwin'
-    ? [UiohookKey.Alt, UiohookKey.Space]
-    : [UiohookKey.Ctrl, UiohookKey.Alt, UiohookKey.D]
+    ? [
+        { index: 0, keys: [UiohookKey.Meta, UiohookKey[1]] },
+        { index: 1, keys: [UiohookKey.Meta, UiohookKey[2]] },
+        { index: 2, keys: [UiohookKey.Meta, UiohookKey[3]] }
+      ]
+    : [
+        { index: 0, keys: [UiohookKey.Ctrl, UiohookKey.Alt, UiohookKey[1]] },
+        { index: 1, keys: [UiohookKey.Ctrl, UiohookKey.Alt, UiohookKey[2]] },
+        { index: 2, keys: [UiohookKey.Ctrl, UiohookKey.Alt, UiohookKey[3]] }
+      ]
+
+function isComboActive(keys) {
+  return keys.every((key) => heldKeys.has(key))
+}
 
 function isHoldComboActive() {
-  return HOLD_COMBO.every((key) => heldKeys.has(key))
+  const combo = getHoldCombo()
+  return combo.length > 0 && isComboActive(combo)
 }
 
 function registerHoldListener() {
@@ -117,6 +182,14 @@ function registerHoldListener() {
       donutHeld = true
       showDonutWindow()
     }
+
+    if (subDonutHeldIndex === null) {
+      const combo = SUB_HOLD_COMBOS.find((c) => isComboActive(c.keys))
+      if (combo) {
+        subDonutHeldIndex = combo.index
+        showSubDonutWindow(combo.index)
+      }
+    }
   })
 
   uIOhook.on('keyup', (e) => {
@@ -126,24 +199,14 @@ function registerHoldListener() {
       donutHeld = false
       mainWindow?.webContents.send('main:confirm')
     }
+
+    if (subDonutHeldIndex !== null && !isComboActive(SUB_HOLD_COMBOS[subDonutHeldIndex].keys)) {
+      subDonutHeldIndex = null
+      mainWindow?.webContents.send('subdonut:confirm')
+    }
   })
 
   uIOhook.start()
-}
-
-function registerShortcuts() {
-  if (process.platform === 'darwin') {
-    // Main 도넛이 열려있을 때 cmd+1~3 → Sub 도넛 (강의자료/과제/동영상)
-    globalShortcut.register('Cmd+1', () => openSubDonut(0))
-    globalShortcut.register('Cmd+2', () => openSubDonut(1))
-    globalShortcut.register('Cmd+3', () => openSubDonut(2))
-  } else {
-    // Windows: Main 도넛은 registerHoldListener의 Ctrl+Alt+D 홀드 감지로 처리하고,
-    // Sub 도넛은 Mac과 동일하게 누를 때마다 열고/닫는 토글 단축키로 유지한다.
-    globalShortcut.register('Ctrl+Alt+1', () => openSubDonut(0))
-    globalShortcut.register('Ctrl+Alt+2', () => openSubDonut(1))
-    globalShortcut.register('Ctrl+Alt+3', () => openSubDonut(2))
-  }
 }
 
 function registerWindowIpc() {
@@ -169,8 +232,9 @@ app.whenReady().then(() => {
   registerIpcHandlers()
   registerWindowIpc()
   createWindow()
-  registerShortcuts()
   registerHoldListener()
+  startScheduler()
+  globalShortcut.register('CommandOrControl+,', createPreferencesWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -187,4 +251,5 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll()
   uIOhook.stop()
   stopSync()
+  stopScheduler()
 })

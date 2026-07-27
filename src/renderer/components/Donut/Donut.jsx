@@ -16,6 +16,7 @@ const OUTER_R = 185
 const INNER_R = 52.5
 const BASE_COLOR = '#fe748a'
 const HOVER_COLOR = '#ff99b0'
+const CENTER_ICON_SIZE = 40
 
 // 창이 다시 보일 때 마우스가 이미 섹터 위에 있으면(움직이지 않아 mouseenter가
 // 발생하지 않는 경우) 커서 위치로 직접 초기 호버 섹터를 계산
@@ -36,6 +37,7 @@ function getInitialHoverIndex(cursor) {
 
 export default function Donut({ onHoverChange, initialCursor }) {
   const [hoveredIndex, setHoveredIndex] = useState(() => getInitialHoverIndex(initialCursor))
+  const HoveredIcon = hoveredIndex !== null ? SECTORS[hoveredIndex].icon : null
 
   const handleHover = (index) => {
     setHoveredIndex(index)
@@ -88,6 +90,16 @@ export default function Donut({ onHoverChange, initialCursor }) {
 
       {/* 중앙 구멍 투명 */}
       <circle cx={CX} cy={CY} r={INNER_R} fill="transparent" />
+
+      {HoveredIcon && (
+        <HoveredIcon
+          x={CX - CENTER_ICON_SIZE / 2}
+          y={CY - CENTER_ICON_SIZE / 2}
+          size={CENTER_ICON_SIZE}
+          color={BASE_COLOR}
+          style={{ pointerEvents: 'none' }}
+        />
+      )}
     </svg>
   )
 }

@@ -5,6 +5,13 @@ body {
   height: 100%;
   overflow: hidden;
   background: transparent;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    'Apple SD Gothic Neo',
+    'Malgun Gothic',
+    'Segoe UI',
+    sans-serif;
 }
 
 * {

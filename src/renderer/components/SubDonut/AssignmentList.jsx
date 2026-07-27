@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BiArrowBack, BiLoaderAlt, BiTimeFive } from 'react-icons/bi'
+import { BiLoaderAlt, BiTimeFive } from 'react-icons/bi'
 
 const PANEL_SIZE = 400
 
@@ -27,7 +27,7 @@ function statusInfo(assignment) {
   return { label: '미제출', color: '#999' }
 }
 
-export default function AssignmentList({ courseName, color, onBack }) {
+export default function AssignmentList({ courseName, color }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -73,23 +73,6 @@ export default function AssignmentList({ courseName, color, onBack }) {
           flexShrink: 0
         }}
       >
-        <button
-          onClick={onBack}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 28,
-            height: 28,
-            border: 'none',
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.6)',
-            cursor: 'pointer',
-            flexShrink: 0
-          }}
-        >
-          <BiArrowBack size={16} color="#3a3a3a" />
-        </button>
         <div
           style={{
             fontSize: 15,

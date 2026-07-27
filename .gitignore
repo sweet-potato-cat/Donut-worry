@@ -7,3 +7,4 @@ out
 .env
 scraper-output
 .playwright-user-data
+resources/playwright-browsers

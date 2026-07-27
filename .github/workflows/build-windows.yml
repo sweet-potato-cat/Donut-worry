@@ -26,6 +26,10 @@ jobs:
           node-version: 22
 
       - run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - run: npx playwright install chromium
 
       - run: npm run build:win
 

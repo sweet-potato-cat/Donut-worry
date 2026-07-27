@@ -25,7 +25,9 @@ import { uniqueBy } from './utils/file-utils.mjs'
 // 필요한 경우에만 로그인용 브라우저 창을 자동으로 띄움
 async function launchAuthenticatedContext(preferHeadless) {
   const { chromium } = await getPlaywright()
-  const userDataDir = path.resolve('.playwright-user-data')
+  const userDataDir = process.env.DONUT_PLAYWRIGHT_PROFILE_DIR
+    ? path.resolve(process.env.DONUT_PLAYWRIGHT_PROFILE_DIR)
+    : path.resolve('.playwright-user-data')
 
   let browserContext = await chromium.launchPersistentContext(userDataDir, {
     headless: preferHeadless

@@ -1,12 +1,16 @@
 import fs from 'fs'
 import path from 'path'
 import { spawn } from 'child_process'
-import { shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow } from 'electron'
 import { getDecryptedCredentials } from './credentials.js'
 
-const COURSES_ROOT = path.resolve('scraper-output', 'courses')
-const PROJECT_ROOT = process.cwd()
-const NPM_BIN = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+// 스크래퍼는 npm/외부 Node 설치에 의존하지 않도록 Electron 자신의 Node
+// 런타임(ELECTRON_RUN_AS_NODE)으로 직접 실행한다. 배포된 앱은 process.cwd()가
+// 프로젝트 폴더를 가리킨다는 보장이 없으므로, 출력/세션 경로도 모두
+// app.getPath('userData') 기준 절대 경로로 고정한다
+const OUTPUT_ROOT = path.join(app.getPath('userData'), 'scraper-output')
+const PLAYWRIGHT_PROFILE_DIR = path.join(app.getPath('userData'), 'playwright-profile')
+const COURSES_ROOT = path.join(OUTPUT_ROOT, 'courses')
 const SYNC_TIMEOUT_MS = 10 * 60 * 1000
 const SNAPSHOT_JSON_FILES = [
   'assignments.json',
@@ -75,7 +79,7 @@ function listCourseFileKeys() {
 }
 
 function readJsonItemCount(fileName) {
-  const filePath = path.join('scraper-output', fileName)
+  const filePath = path.join(OUTPUT_ROOT, fileName)
 
   try {
     const value = JSON.parse(fs.readFileSync(filePath, 'utf8'))
@@ -144,6 +148,22 @@ export function onSyncEvent(listener) {
   return () => syncListeners.delete(listener)
 }
 
+// 패키징된 앱에서는 src/scraper가 asarUnpack으로 app.asar 밖에 실제 파일로
+// 존재하고, 개발 중에는 프로젝트 소스를 그대로 가리킨다
+function resolveScraperEntry() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'app.asar.unpacked', 'src', 'scraper', 'ecampus-sandbox.mjs')
+    : path.join(app.getAppPath(), 'src', 'scraper', 'ecampus-sandbox.mjs')
+}
+
+// 개발 중엔 이 컴퓨터에 npx playwright install로 받아둔 전역 캐시를 그대로 쓰고,
+// 배포된 앱은 빌드 시점에 resources/playwright-browsers로 함께 번들링한 브라우저를 쓴다
+// (scripts/stage-playwright-browser.mjs 참고)
+function resolvePlaywrightBrowsersPath() {
+  if (!app.isPackaged) return null
+  return path.join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'playwright-browsers')
+}
+
 export function startSync() {
   if (syncState.running) return { ...syncState }
 
@@ -154,16 +174,29 @@ export function startSync() {
   let timedOut = false
 
   const credentials = getDecryptedCredentials()
-  const env = credentials
-    ? { ...process.env, KHU_LOGIN_ID: credentials.id, KHU_LOGIN_PASSWORD: credentials.password }
-    : process.env
+  const browsersPath = resolvePlaywrightBrowsersPath()
 
-  syncChild = spawn(NPM_BIN, ['run', 'scrape:download', '--', '--headless'], {
-    cwd: PROJECT_ROOT,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    windowsHide: true,
-    env
-  })
+  const env = {
+    ...process.env,
+    ELECTRON_RUN_AS_NODE: '1',
+    DONUT_OUTPUT_ROOT: OUTPUT_ROOT,
+    DONUT_PLAYWRIGHT_PROFILE_DIR: PLAYWRIGHT_PROFILE_DIR,
+    ...(browsersPath ? { PLAYWRIGHT_BROWSERS_PATH: browsersPath } : {}),
+    ...(credentials
+      ? { KHU_LOGIN_ID: credentials.id, KHU_LOGIN_PASSWORD: credentials.password }
+      : {})
+  }
+
+  syncChild = spawn(
+    process.execPath,
+    [resolveScraperEntry(), '--live', '--download', '--headless'],
+    {
+      cwd: app.getPath('userData'),
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+      env
+    }
+  )
 
   syncTimeout = setTimeout(() => {
     timedOut = true

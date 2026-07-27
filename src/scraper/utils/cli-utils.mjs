@@ -9,12 +9,16 @@ async function printUsage() {
   console.log(
     '  --headless  Run without a visible browser window (opens one automatically if login is needed)'
   )
+  console.log('  --show-browser  Force the scraper browser window to stay visible for debugging')
   console.log('  --debug  Save page and frame HTML snapshots under scraper-output/debug')
   console.log('  --course=<name>  Only scan/download courses whose names include <name>')
   console.log('  --deep  Use slower fallback clicks for hard-to-open external tool materials')
   console.log('  --assignments-only  Collect assignments without scanning weekly-learning pages')
   console.log('  --notices-only  Collect notices without scanning weekly-learning pages')
+  console.log('  --materials-only  Collect and download weekly-learning materials only')
+  console.log('  --videos-only  Collect weekly-learning video progress only')
   console.log('  --grading-only  Collect grading weights from course syllabuses')
+  console.log('  --skip-grading  Skip grading weights during normal refresh/download runs')
 }
 
 function hasCliFlag(name) {

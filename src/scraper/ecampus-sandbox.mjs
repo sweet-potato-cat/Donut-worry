@@ -1,4 +1,5 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { access, mkdir, writeFile } from 'node:fs/promises'
+import os from 'node:os'
 import path from 'node:path'
 
 import { dashboardUrl, outputRoot } from './core/constants.mjs'
@@ -20,31 +21,100 @@ import { uniqueBy } from './utils/file-utils.mjs'
 // 필요한 경우에만 로그인용 브라우저 창을 자동으로 띄움
 async function launchAuthenticatedContext(preferHeadless) {
   const { chromium } = await getPlaywright()
-  const userDataDir = path.resolve('.playwright-user-data')
+  const userDataDir =
+    process.env.DONUT_PLAYWRIGHT_USER_DATA_DIR ??
+    path.join(os.homedir(), '.donut-worry', 'playwright-user-data')
+  const storageStatePath = path.join(userDataDir, 'canvas-auth-state.json')
+  const showBrowser = hasCliFlag('--show-browser')
+  const headless = preferHeadless && !showBrowser
+
+  if (headless) {
+    const storedContext = await launchStoredAuthContext(chromium, storageStatePath)
+
+    if (storedContext && (await navigateAndCheckAuth(storedContext.page, dashboardUrl))) {
+      return storedContext
+    }
+
+    await storedContext?.browserContext.close().catch(() => {})
+  }
 
   let browserContext = await chromium.launchPersistentContext(userDataDir, {
-    headless: preferHeadless
+    headless
   })
   let page = await browserContext.newPage()
 
-  if (!preferHeadless) {
+  if (!headless) {
     console.log('Browser opened.')
     console.log('If login is required, log in manually in the opened browser.')
   }
 
   if (await navigateAndCheckAuth(page, dashboardUrl)) {
+    await saveStorageState(browserContext, userDataDir, storageStatePath)
     return { browserContext, page }
   }
 
-  if (preferHeadless) {
+  if (headless && (await waitForCanvasLogin(page, dashboardUrl, { allowManualLogin: false }))) {
+    await saveStorageState(browserContext, userDataDir, storageStatePath)
+    return { browserContext, page }
+  }
+
+  if (headless) {
     console.log('Session expired or not logged in. Opening a visible browser window for login.')
     await browserContext.close()
-    browserContext = await chromium.launchPersistentContext(userDataDir, { headless: false })
-    page = await browserContext.newPage()
+    const loginContext = await chromium.launchPersistentContext(userDataDir, { headless: false })
+    const loginPage = await loginContext.newPage()
+
+    await waitForCanvasLogin(loginPage, dashboardUrl)
+    await mkdir(userDataDir, { recursive: true })
+    await loginContext.storageState({ path: storageStatePath })
+    await loginContext.close()
+
+    const storedContext = await launchStoredAuthContext(chromium, storageStatePath)
+
+    if (storedContext && (await navigateAndCheckAuth(storedContext.page, dashboardUrl))) {
+      return storedContext
+    }
+
+    await storedContext?.browserContext.close().catch(() => {})
+    throw new Error('로그인 후에도 Canvas 인증 상태를 확인하지 못했습니다')
   }
 
   await waitForCanvasLogin(page, dashboardUrl)
+  await saveStorageState(browserContext, userDataDir, storageStatePath)
   return { browserContext, page }
+}
+
+async function saveStorageState(browserContext, userDataDir, storageStatePath) {
+  await mkdir(userDataDir, { recursive: true })
+  await browserContext.storageState({ path: storageStatePath })
+}
+
+async function launchStoredAuthContext(chromium, storageStatePath) {
+  if (!(await fileExists(storageStatePath))) {
+    return null
+  }
+
+  const browser = await chromium.launch({ headless: true })
+  const browserContext = await browser.newContext({ storageState: storageStatePath })
+  const closeContext = browserContext.close.bind(browserContext)
+  browserContext.close = async (...args) => {
+    await closeContext(...args).catch(() => {})
+    await browser.close().catch(() => {})
+  }
+
+  return {
+    browserContext,
+    page: await browserContext.newPage()
+  }
+}
+
+async function fileExists(filePath) {
+  try {
+    await access(filePath)
+    return true
+  } catch {
+    return false
+  }
 }
 
 const WEEKLY_SCAN_CONCURRENCY = 3
@@ -89,6 +159,11 @@ async function runLiveCollector() {
   const { browserContext, page } = await launchAuthenticatedContext(hasCliFlag('--headless'))
   const allLinks = []
   const allWeeklyItems = []
+  const assignmentsOnly = hasCliFlag('--assignments-only')
+  const noticesOnly = hasCliFlag('--notices-only')
+  const gradingOnly = hasCliFlag('--grading-only')
+  const materialsOnly = hasCliFlag('--materials-only')
+  const videosOnly = hasCliFlag('--videos-only')
 
   const courseFilter = getCliOption('--course')
   const courses = (await collectCoursesFromDashboard(page)).filter(
@@ -104,7 +179,7 @@ async function runLiveCollector() {
 
   await mkdir(outputRoot, { recursive: true })
 
-  if (!hasCliFlag('--notices-only') && !hasCliFlag('--grading-only')) {
+  if (!noticesOnly && !gradingOnly && !materialsOnly && !videosOnly) {
     const { assignments, unsubmittedAssignments } = await collectAssignmentRecords(page, courses)
 
     await writeFile(assignmentsPath, JSON.stringify(assignments, null, 2))
@@ -117,7 +192,7 @@ async function runLiveCollector() {
     console.log(`Saved to ${unsubmittedAssignmentsPath}`)
   }
 
-  if (!hasCliFlag('--assignments-only') && !hasCliFlag('--grading-only')) {
+  if (!assignmentsOnly && !gradingOnly && !materialsOnly && !videosOnly) {
     const notices = await collectNoticeRecords(page, courses)
 
     await writeFile(noticesPath, JSON.stringify(notices, null, 2))
@@ -126,7 +201,13 @@ async function runLiveCollector() {
     console.log(`Saved to ${noticesPath}`)
   }
 
-  if (!hasCliFlag('--assignments-only') && !hasCliFlag('--notices-only')) {
+  if (
+    !assignmentsOnly &&
+    !noticesOnly &&
+    !materialsOnly &&
+    !videosOnly &&
+    !hasCliFlag('--skip-grading')
+  ) {
     const gradingWeights = await collectGradingWeightRecords(browserContext, courses)
 
     await writeFile(gradingWeightsPath, JSON.stringify(gradingWeights, null, 2))
@@ -140,9 +221,9 @@ async function runLiveCollector() {
   }
 
   if (
-    hasCliFlag('--assignments-only') ||
-    hasCliFlag('--notices-only') ||
-    hasCliFlag('--grading-only')
+    assignmentsOnly ||
+    noticesOnly ||
+    gradingOnly
   ) {
     await browserContext.close()
     return
@@ -182,7 +263,7 @@ async function runLiveCollector() {
   console.log(`Found ${materials.length} material link candidates.`)
   console.log(`Saved to ${outputPath}`)
 
-  if (hasCliFlag('--download')) {
+  if (hasCliFlag('--download') && !videosOnly) {
     await downloadWeeklyMaterials(page, browserContext, weeklyMaterialItems)
   }
 

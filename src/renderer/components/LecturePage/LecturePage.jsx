@@ -11,6 +11,7 @@ import { iconForFile } from '../../utils/fileIcons'
 
 const TITLE_COLOR = '#fe748a'
 const ACCENT = '#fcf39d'
+const SYNC_SCOPE = 'lectures'
 
 export default function LecturePage() {
   const [courses, setCourses] = useState([])
@@ -18,6 +19,9 @@ export default function LecturePage() {
   const [expanded, setExpanded] = useState(() => new Set())
   const [filesByCourse, setFilesByCourse] = useState({})
   const [syncing, setSyncing] = useState(false)
+  const [syncCourseName, setSyncCourseName] = useState('')
+  const [refreshMenuOpen, setRefreshMenuOpen] = useState(false)
+  const [coursePickerOpen, setCoursePickerOpen] = useState(false)
   const [syncMessage, setSyncMessage] = useState(null) // { type: 'success' | 'error', text }
   const expandedRef = useRef(expanded)
   useEffect(() => {
@@ -44,15 +48,22 @@ export default function LecturePage() {
     })
 
     window.electron?.ipcRenderer.invoke('course:syncStatus').then((state) => {
-      if (!cancelled) setSyncing(!!state?.running)
+      if (!cancelled) {
+        setSyncing(!!state?.running && state.scope === SYNC_SCOPE)
+        setSyncCourseName(state?.running && state.scope === SYNC_SCOPE ? (state.courseName ?? '') : '')
+      }
     })
 
     const handler = (_e, event) => {
+      if (event.scope && event.scope !== SYNC_SCOPE && event.scope !== 'all') return
+
       if (event.type === 'start') {
         setSyncing(true)
+        setSyncCourseName(event.courseName ?? '')
         setSyncMessage(null)
       } else if (event.type === 'done') {
         setSyncing(false)
+        setSyncCourseName('')
         if (event.success) {
           setSyncMessage({ type: 'success', text: event.message ?? '새로고침 완료' })
           fetchCourses().then(() => {
@@ -76,6 +87,52 @@ export default function LecturePage() {
     return () => clearTimeout(timer)
   }, [syncMessage])
 
+  useEffect(() => {
+    if (!syncing) return
+
+    let cancelled = false
+    const pollSyncStatus = () => {
+      window.electron?.ipcRenderer
+        .invoke('course:syncStatus')
+        .then((state) => {
+          if (cancelled) return
+          if (state?.running) {
+            if (state.scope === SYNC_SCOPE) {
+              setSyncCourseName(state.courseName ?? '')
+            } else {
+              setSyncing(false)
+              setSyncCourseName('')
+            }
+            return
+          }
+
+          setSyncing(false)
+          setSyncCourseName('')
+
+          if (state?.lastResult === 'success') {
+            setSyncMessage({ type: 'success', text: '새로고침 완료' })
+            fetchCourses().then(() => {
+              expandedRef.current.forEach((name) => loadFiles(name))
+            })
+          } else if (state?.lastResult === 'error') {
+            setSyncMessage({ type: 'error', text: state.lastError ?? '새로고침에 실패했습니다' })
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setSyncing(false)
+            setSyncMessage({ type: 'error', text: '새로고침 상태를 확인하지 못했습니다' })
+          }
+        })
+    }
+
+    const timer = setInterval(pollSyncStatus, 2000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [syncing])
+
   const toggleCourse = (courseName) => {
     setExpanded((prev) => {
       const next = new Set(prev)
@@ -93,9 +150,37 @@ export default function LecturePage() {
     window.electron?.ipcRenderer.invoke('course:openFile', { filePath })
   }
 
-  const handleSync = () => {
+  const closeRefreshMenu = () => {
+    setRefreshMenuOpen(false)
+    setCoursePickerOpen(false)
+  }
+
+  const startRefresh = (courseName = '') => {
     if (syncing) return
-    window.electron?.ipcRenderer.invoke('course:sync')
+    setSyncing(true)
+    setSyncCourseName(courseName)
+    setSyncMessage(null)
+    closeRefreshMenu()
+    window.electron?.ipcRenderer
+      .invoke('course:sync', { scope: SYNC_SCOPE, courseName })
+      .then((state) => {
+        if (state?.running && state.scope !== SYNC_SCOPE) {
+          setSyncing(false)
+          setSyncCourseName('')
+          setSyncMessage({ type: 'error', text: '다른 섹터가 새로고침 중입니다' })
+        }
+      })
+      .catch((err) => {
+        setSyncing(false)
+        setSyncCourseName('')
+        setSyncMessage({ type: 'error', text: err.message ?? '새로고침을 시작하지 못했습니다' })
+      })
+  }
+
+  const handleRefreshButtonClick = () => {
+    if (syncing) return
+    setRefreshMenuOpen((open) => !open)
+    setCoursePickerOpen(false)
   }
 
   return (
@@ -124,7 +209,6 @@ export default function LecturePage() {
           courses.map((course) => {
             const isOpen = expanded.has(course.name)
             const files = filesByCourse[course.name]
-
             return (
               <div
                 key={course.name}
@@ -222,12 +306,54 @@ export default function LecturePage() {
             {syncMessage.text}
           </div>
         )}
-        <button onClick={handleSync} disabled={syncing} style={syncButtonStyle(syncing)}>
+        {refreshMenuOpen && !syncing && (
+          <div style={refreshMenuStyle}>
+            {coursePickerOpen ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setCoursePickerOpen(false)}
+                  style={refreshMenuBackButtonStyle}
+                >
+                  ← 뒤로
+                </button>
+                <div style={coursePickerListStyle}>
+                  {courses.map((course) => (
+                    <button
+                      key={course.name}
+                      type="button"
+                      onClick={() => startRefresh(course.name)}
+                      style={coursePickerButtonStyle}
+                    >
+                      {course.name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={() => startRefresh()} style={refreshMenuButtonStyle}>
+                  전체 새로고침
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCoursePickerOpen(true)}
+                  style={refreshMenuButtonStyle}
+                >
+                  개별 새로고침
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        <button onClick={handleRefreshButtonClick} disabled={syncing} style={syncButtonStyle(syncing)}>
           <BiRefresh
             size={16}
             style={syncing ? { animation: 'spin 0.8s linear infinite' } : undefined}
           />
-          {syncing ? '새로고침 중…' : '새로고침'}
+          <span style={{ fontSize: 13 }}>
+            {syncing ? (syncCourseName ? '과목 새로고침 중...' : '새로고침 중...') : '새로고침'}
+          </span>
         </button>
       </div>
 
@@ -301,4 +427,49 @@ const fileRowStyle = {
   borderRadius: 10,
   cursor: 'pointer',
   transition: 'background 0.1s ease'
+}
+
+const refreshMenuStyle = {
+  width: 220,
+  maxHeight: 320,
+  overflow: 'hidden',
+  padding: 8,
+  borderRadius: 12,
+  border: '1px solid #eee',
+  background: '#fff',
+  boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
+}
+
+const refreshMenuButtonStyle = {
+  width: '100%',
+  padding: '10px 12px',
+  border: 'none',
+  borderRadius: 8,
+  background: 'transparent',
+  color: '#3a3a3a',
+  fontSize: 13,
+  fontWeight: 700,
+  textAlign: 'left',
+  cursor: 'pointer'
+}
+
+const refreshMenuBackButtonStyle = {
+  ...refreshMenuButtonStyle,
+  color: TITLE_COLOR
+}
+
+const coursePickerListStyle = {
+  maxHeight: 260,
+  overflowY: 'auto',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 2
+}
+
+const coursePickerButtonStyle = {
+  ...refreshMenuButtonStyle,
+  fontWeight: 600,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap'
 }

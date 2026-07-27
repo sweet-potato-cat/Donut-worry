@@ -20,8 +20,12 @@ async function navigateAndCheckAuth(page, targetUrl) {
   return isCanvasApiAuthenticated(page)
 }
 
-async function waitForCanvasLogin(page, targetUrl) {
-  if (await navigateAndCheckAuth(page, targetUrl)) return
+async function waitForCanvasLogin(page, targetUrl, { allowManualLogin = true } = {}) {
+  if (await navigateAndCheckAuth(page, targetUrl)) return true
+
+  if (await autoSubmitRememberedLogin(page, targetUrl)) return true
+
+  if (!allowManualLogin) return false
 
   console.log('Login page detected.')
   console.log('Please log in in the opened browser. Waiting up to 5 minutes...')
@@ -48,6 +52,75 @@ async function waitForCanvasLogin(page, targetUrl) {
     null,
     { timeout: 300000 }
   )
+  return true
+}
+
+async function autoSubmitRememberedLogin(page, targetUrl) {
+  await page
+    .waitForFunction(
+      () => {
+        const passwordInput = document.querySelector('input[type="password"]')
+        const textInput =
+          document.querySelector('input[type="text"]') ??
+          document.querySelector('input[name*="id" i], input[name*="user" i]')
+
+        return Boolean(passwordInput?.value && textInput?.value)
+      },
+      null,
+      { timeout: 5000 }
+    )
+    .catch(() => {})
+
+  const submitted = await page
+    .evaluate(() => {
+      const passwordInput = document.querySelector('input[type="password"]')
+      const textInput =
+        document.querySelector('input[type="text"]') ??
+        document.querySelector('input[name*="id" i], input[name*="user" i]')
+
+      if (!passwordInput?.value || !textInput?.value) {
+        return false
+      }
+
+      const loginControl =
+        [...document.querySelectorAll('button, input[type="submit"], a')]
+          .filter((element) => {
+            const text = `${element.textContent ?? ''} ${element.value ?? ''}`.trim()
+            return /login/i.test(text)
+          })
+          .find((element) => !element.disabled) ??
+        passwordInput.closest('form')?.querySelector('button, input[type="submit"]')
+
+      if (loginControl) {
+        loginControl.click()
+        return true
+      }
+
+      const form = passwordInput.closest('form')
+      if (form) {
+        form.requestSubmit?.()
+        form.submit?.()
+        return true
+      }
+
+      return false
+    })
+    .catch(() => false)
+
+  if (!submitted) return false
+
+  console.log('Saved login fields detected. Submitting login automatically.')
+
+  await page
+    .waitForFunction(
+      () => location.hostname === 'khcanvas.khu.ac.kr' && !location.pathname.includes('/login'),
+      null,
+      { timeout: 30000 }
+    )
+    .catch(() => {})
+
+  await page.waitForLoadState('networkidle').catch(() => {})
+  return navigateAndCheckAuth(page, targetUrl)
 }
 
 async function isCanvasApiAuthenticated(page) {

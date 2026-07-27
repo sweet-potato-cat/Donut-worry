@@ -12,6 +12,7 @@ import {
 const TITLE_COLOR = '#3a9fe0'
 const ACCENT = '#cdeaff'
 const INCOMPLETE_COLOR = '#e05263'
+const SYNC_SCOPE = 'videos'
 
 function weekLabel(item) {
   const parts = [item.week, item.lesson].filter(Boolean)
@@ -50,10 +51,14 @@ export default function VideoPage() {
     })
 
     window.electron?.ipcRenderer.invoke('course:syncStatus').then((state) => {
-      if (!cancelled) setSyncing(!!state?.running)
+      if (!cancelled) {
+        setSyncing(!!state?.running && state.scope === SYNC_SCOPE)
+      }
     })
 
     const handler = (_e, event) => {
+      if (event.scope && event.scope !== SYNC_SCOPE && event.scope !== 'all') return
+
       if (event.type === 'start') {
         setSyncing(true)
         setSyncMessage(null)
@@ -82,6 +87,46 @@ export default function VideoPage() {
     return () => clearTimeout(timer)
   }, [syncMessage])
 
+  useEffect(() => {
+    if (!syncing) return
+
+    let cancelled = false
+    const pollSyncStatus = () => {
+      window.electron?.ipcRenderer
+        .invoke('course:syncStatus')
+        .then((state) => {
+          if (cancelled) return
+          if (state?.running) {
+            if (state.scope !== SYNC_SCOPE) setSyncing(false)
+            return
+          }
+
+          setSyncing(false)
+
+          if (state?.lastResult === 'success') {
+            setSyncMessage({ type: 'success', text: '새로고침 완료' })
+            fetchCourses().then(() => {
+              expandedRef.current.forEach((name) => loadItems(name))
+            })
+          } else if (state?.lastResult === 'error') {
+            setSyncMessage({ type: 'error', text: state.lastError ?? '새로고침에 실패했습니다' })
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setSyncing(false)
+            setSyncMessage({ type: 'error', text: '새로고침 상태를 확인하지 못했습니다' })
+          }
+        })
+    }
+
+    const timer = setInterval(pollSyncStatus, 2000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [syncing])
+
   const toggleCourse = (courseName) => {
     setExpanded((prev) => {
       const next = new Set(prev)
@@ -101,7 +146,20 @@ export default function VideoPage() {
 
   const handleSync = () => {
     if (syncing) return
-    window.electron?.ipcRenderer.invoke('course:sync')
+    setSyncing(true)
+    setSyncMessage(null)
+    window.electron?.ipcRenderer
+      .invoke('course:sync', { scope: SYNC_SCOPE })
+      .then((state) => {
+        if (state?.running && state.scope !== SYNC_SCOPE) {
+          setSyncing(false)
+          setSyncMessage({ type: 'error', text: '다른 섹터가 새로고침 중입니다' })
+        }
+      })
+      .catch((err) => {
+        setSyncing(false)
+        setSyncMessage({ type: 'error', text: err.message ?? '새로고침을 시작하지 못했습니다' })
+      })
   }
 
   return (
@@ -258,7 +316,7 @@ export default function VideoPage() {
             size={16}
             style={syncing ? { animation: 'spin 0.8s linear infinite' } : undefined}
           />
-          {syncing ? '새로고침 중…' : '새로고침'}
+          <span style={{ fontSize: 13 }}>{syncing ? '새로고침 중...' : '새로고침'}</span>
         </button>
       </div>
 

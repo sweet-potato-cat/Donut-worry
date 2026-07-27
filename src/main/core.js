@@ -41,8 +41,8 @@ const handlers = {
     return { success: true }
   },
 
-  'course:sync': async () => {
-    return courses.startSync()
+  'course:sync': async ({ scope, courseName } = {}) => {
+    return courses.startSync(scope, courseName)
   },
 
   'course:syncStatus': async () => {

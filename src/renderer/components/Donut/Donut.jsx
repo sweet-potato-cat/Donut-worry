@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { BiBookAlt, BiSolidPencil, BiSolidCaretRightCircle, BiSolidMegaphone } from 'react-icons/bi'
 import { getSectorPath, getSectorCenter, getSectorIndexAtPoint } from './donutMath'
 
 const SECTORS = [
   { index: 0, label: '강의자료', icon: BiBookAlt },
-  { index: 1, label: '과제',    icon: BiSolidPencil },
-  { index: 2, label: '동영상',  icon: BiSolidCaretRightCircle },
-  { index: 3, label: '공지',    icon: BiSolidMegaphone },
+  { index: 1, label: '과제', icon: BiSolidPencil },
+  { index: 2, label: '동영상', icon: BiSolidCaretRightCircle },
+  { index: 3, label: '공지', icon: BiSolidMegaphone }
 ]
 
 const SIZE = 400
@@ -36,19 +36,20 @@ function getInitialHoverIndex(cursor) {
 }
 
 export default function Donut({ onHoverChange, initialCursor }) {
-  const [hoveredIndex, setHoveredIndex] = useState(() => getInitialHoverIndex(initialCursor))
+  // 초기 호버 상태를 렌더 중(동기)에 바로 부모(App)에도 동기화한다. 이걸
+  // useEffect로 미루면, 창이 열리자마자 바로 단축키를 떼는 경우 main:confirm이
+  // 그 effect보다 먼저 도착해 부모의 호버 상태가 아직 반영 안 된 채로 판정될 수 있음
+  const [hoveredIndex, setHoveredIndex] = useState(() => {
+    const initial = getInitialHoverIndex(initialCursor)
+    onHoverChange?.(initial)
+    return initial
+  })
   const HoveredIcon = hoveredIndex !== null ? SECTORS[hoveredIndex].icon : null
 
   const handleHover = (index) => {
     setHoveredIndex(index)
     onHoverChange?.(index)
   }
-
-  // 마운트 시점의 초기 호버 상태를 부모(App)에도 동기화
-  useEffect(() => {
-    onHoverChange?.(hoveredIndex)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   return (
     <svg

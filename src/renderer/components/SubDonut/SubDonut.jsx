@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { BiSolidFolder } from 'react-icons/bi'
 import { getSectorPath, getSectorCenter, getSectorIndexAtPoint } from '../Donut/donutMath'
 
@@ -77,21 +77,21 @@ export default function SubDonut({
   centerIcon: CenterIcon,
   alerts
 }) {
-  const [hoveredIndex, setHoveredIndex] = useState(() =>
-    getInitialHoverIndex(initialCursor, subjects.length)
-  )
+  // 초기 호버 상태를 렌더 중(동기)에 바로 부모에도 동기화한다. 이걸 useEffect로
+  // 미루면, 창이 열리자마자 바로 단축키를 떼는 경우 subdonut:confirm이 그
+  // effect보다 먼저 도착해 부모의 hoveredIndexRef가 아직 null인 채로 판정되어
+  // (실제로는 섹터가 호버된 채 보이는데도) 그냥 창이 닫혀버리는 문제가 있었음
+  const [hoveredIndex, setHoveredIndex] = useState(() => {
+    const initial = getInitialHoverIndex(initialCursor, subjects.length)
+    onHoverChange?.(initial)
+    return initial
+  })
   const sweep = 360 / subjects.length
 
   const handleHover = (index) => {
     setHoveredIndex(index)
     onHoverChange?.(index)
   }
-
-  // 마운트 시점의 초기 호버 상태를 부모에도 동기화
-  useEffect(() => {
-    onHoverChange?.(hoveredIndex)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   return (
     <svg

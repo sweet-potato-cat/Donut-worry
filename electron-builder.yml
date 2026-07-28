@@ -1,4 +1,4 @@
-appId: com.donutworry.app
+appId: com.electron.app
 productName: donut-worry
 directories:
   buildResources: build

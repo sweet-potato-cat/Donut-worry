@@ -45,9 +45,9 @@
 | :--- | :--- | :--- |
 | **App Framework** | Electron + React | 웹 기술(HTML/CSS/JS)을 활용하여 독창적인 도넛 형태의 UI를 크로스플랫폼(Mac/Windows) 환경에서 유연하게 구현하기 위해 채택 |
 | **Scraper** | Playwright | e-Campus의 세션 유지 및 강의 자료/동영상 트래킹을 가장 안정적으로 자동화할 수 있는 강력한 브라우저 자동화 도구 |
-| **Local Database**| SQLite (`better-sqlite3`) | 별도의 서버 없이 유저의 컴퓨터 내에 학업 스케줄, 과제 데이터, 다운로드 이력을 가볍고 빠르게 저장·관리하기 위한 로컬 DB |
+| **Local Storage** | JSON files | 설정, 시간표, 스크래핑 결과, 다운로드 기록을 로컬 JSON 파일로 저장 |
 | **Global Shortcut**| Electron `globalShortcut` | 어떤 작업 중에도 `Option` 키 2회, `Cmd+1~4` 단축키를 눌렀을 때 백그라운드에서 즉시 도넛 UI를 팝업하기 위한 모듈 |
-| **Security** | `keytar` (OS 키체인) | 유저의 e-Campus 계정 자격 증명(ID/PW) 정보를 로컬에 평문으로 저장하지 않고, OS 보안 키체인(Keychain/Credential)에 안전하게 암호화 보관 |
+| **Security** | Electron `safeStorage` | e-Campus ID/PW를 OS 암호화 기능으로 암호화해 `credentials.enc`에 저장 |
 | **Build & Deploy** | `electron-builder` | 최종 사용자가 쉽게 다운로드하여 설치할 수 있도록 `.dmg` (Mac) 및 `.exe` (Windows) 설치 파일 빌드 자동화 |
 
 ---

@@ -13,10 +13,10 @@
 ## 🛠️ 주요 기능 (Key Features)
 
 ### 1. 강의 자료 자동 정제 및 다운로드
-* e-Campus 웹사이트에서 강의 자료를 주기적으로 스크래핑합니다.
+* e-Campus 웹사이트에서 강의 자료를 스크래핑합니다.
 * 의미 없는 파일명(ex: `20260124.pdf`)을 지정된 규칙(`[과목명]~~~.pdf`)으로 변환 후 과목별 디렉토리에 자동 분류 저장합니다.
 
-### 2. 공지사항 및 과제 요약
+### 2. 공지사항 분류 기능 및 마감 임박 순 정렬
 * 새로 올라온 공지사항을 유형별, 과목별 분류 기능으로 제공합니다.
 * 과제 정보(마감일, 중요도)를 추출하여 마감 임박 순으로 정렬합니다.
 
@@ -38,7 +38,6 @@
   <img src="https://img.shields.io/badge/Electron-47848F?style=for-the-badge&logo=electron&logoColor=white"/>
   <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB"/>
   <img src="https://img.shields.io/badge/Playwright-2EAD33?style=for-the-badge&logo=playwright&logoColor=white"/>
-  <img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white"/>
 </div>
 
 | 분류 | 기술 스택 | 선택 이유 (Rethinking) |

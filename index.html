@@ -588,7 +588,7 @@ footer {
   <a href="#" class="nav-brand">
     <div class="nav-icon">🍩</div>
     <span class="nav-name">Donut Worry!</span>
-    <span class="nav-version">v0.1</span>
+    <span class="nav-version" id="nav-version">v1.0.8</span>
   </a>
   <div class="nav-right">
     <a href="#faq" class="nav-faqs">
@@ -653,13 +653,14 @@ footer {
   <div class="feat-item">
     <div class="feat-icon">
       <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M26 8C17.16 8 10 15.16 10 24c0 4.84 2.06 9.2 5.36 12.26L14 44l7.4-2.46A17.86 17.86 0 0 0 26 42c8.84 0 16-7.16 16-16S34.84 8 26 8Z" stroke="rgba(26,8,16,0.85)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="38" cy="16" r="7" fill="#fe748a" stroke="rgba(26,8,16,0.85)" stroke-width="2"/>
-        <line x1="38" y1="12" x2="38" y2="16" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-        <circle cx="38" cy="19" r="1" fill="white"/>
+        <rect x="12" y="24" width="24" height="18" rx="4" stroke="rgba(26,8,16,0.85)" stroke-width="2.2"/>
+        <path d="M18 24v-6a8 8 0 0 1 16 0" stroke="rgba(26,8,16,0.85)" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="26" cy="33" r="2.4" fill="rgba(26,8,16,0.85)"/>
+        <path d="M40 14a8 8 0 1 1-2.2-5.5" stroke="#fe748a" stroke-width="2" stroke-linecap="round"/>
+        <path d="M40 8v6h-6" stroke="#fe748a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </div>
-    <div class="feat-name">Instant<br>Notifications</div>
+    <div class="feat-name">Auto<br>Login</div>
   </div>
 
   <div class="feat-item">
@@ -677,24 +678,23 @@ footer {
   <div class="feat-item">
     <div class="feat-icon">
       <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 20h28M12 26h20M12 32h24" stroke="rgba(26,8,16,0.85)" stroke-width="2.2" stroke-linecap="round"/>
-        <path d="M36 29l6 4-6 4" stroke="rgba(26,8,16,0.85)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M10 40V26M20 40V16M30 40V22M40 40V10" stroke="rgba(26,8,16,0.85)" stroke-width="2.6" stroke-linecap="round"/>
+        <path d="M8 40h34" stroke="rgba(26,8,16,0.85)" stroke-width="2.2" stroke-linecap="round"/>
       </svg>
     </div>
-    <div class="feat-name">Swipe<br>gestures</div>
+    <div class="feat-name">Grading<br>Simulator</div>
   </div>
 
   <!-- Row 2 -->
   <div class="feat-item">
     <div class="feat-icon">
       <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="9" y="9" width="14" height="14" rx="3.5" stroke="rgba(26,8,16,0.85)" stroke-width="2.2"/>
-        <rect x="29" y="9" width="14" height="14" rx="3.5" stroke="rgba(26,8,16,0.85)" stroke-width="2.2"/>
-        <rect x="9" y="29" width="14" height="14" rx="3.5" stroke="rgba(26,8,16,0.85)" stroke-width="2.2"/>
-        <path d="M29 36h14M36 29v14" stroke="rgba(26,8,16,0.85)" stroke-width="2.2" stroke-linecap="round"/>
+        <rect x="6" y="12" width="34" height="24" rx="5" stroke="rgba(26,8,16,0.85)" stroke-width="2.2"/>
+        <path d="M18 19l10 5-10 5V19Z" fill="rgba(26,8,16,0.85)"/>
+        <circle cx="40" cy="12" r="7" fill="#fe748a" stroke="rgba(26,8,16,0.85)" stroke-width="2"/>
       </svg>
     </div>
-    <div class="feat-name">Packed with<br>surprises</div>
+    <div class="feat-name">Unwatched<br>Videos</div>
   </div>
 
   <div class="feat-item">
@@ -732,26 +732,19 @@ footer {
 </div>
 
 <!-- ── BOTTOM DOWNLOAD ── -->
-<div class="dl-section" id="download">
-  <a href="#" class="cta-primary" style="padding:13px 28px;font-size:16px;">
-    <span style="font-size:16px;line-height:1;margin-top:-1px;">💻</span>
-    Download for Free
+<div class="dl-section" id="download" style="flex-direction:column;align-items:center;gap:10px;">
+  <a href="https://github.com/sweet-potato-cat/Donut-worry/releases/latest" id="dl-primary-btn" class="cta-primary" style="padding:13px 28px;font-size:16px;" target="_blank" rel="noopener">
+    <span id="dl-primary-icon" style="font-size:16px;line-height:1;margin-top:-1px;">💻</span>
+    <span id="dl-primary-label">Download for Free</span>
+  </a>
+  <a href="https://github.com/sweet-potato-cat/Donut-worry/releases/latest" style="font-size:13px;color:var(--fg-muted);text-decoration:underline;" target="_blank" rel="noopener">
+    다른 운영체제용 설치 파일 보기
   </a>
 </div>
 
 <!-- ── SOCIAL ── -->
 <div class="social-row">
-  <a href="#" class="social-btn" title="X / Twitter">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M1 1l5 5.5L1 13h2l3.7-4.2L10 13h3L7.8 7.2 12.6 1h-2L6 5l-2.8-4H1Z" fill="currentColor"/>
-    </svg>
-  </a>
-  <a href="#" class="social-btn" title="Discord">
-    <svg width="15" height="12" viewBox="0 0 15 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12.7 1A12.4 12.4 0 0 0 9.77.5c-.13.23-.27.54-.37.78A11.5 11.5 0 0 0 5.6 1.28 9.84 9.84 0 0 0 5.23.5 12.37 12.37 0 0 0 2.3 1C.33 3.9-.2 6.72.06 9.5c1.24.92 2.44 1.48 3.62 1.84.29-.4.55-.82.77-1.26a8.06 8.06 0 0 1-1.22-.59c.1-.08.2-.16.3-.24a8.8 8.8 0 0 0 7.54 0c.1.08.2.16.3.24-.4.22-.8.42-1.22.59.22.44.48.87.77 1.26 1.18-.36 2.38-.92 3.62-1.84.3-3.23-.5-6.02-2.33-8.5ZM5.01 7.8c-.72 0-1.31-.67-1.31-1.5S4.28 4.8 5 4.8c.73 0 1.32.67 1.31 1.5-.01.83-.58 1.5-1.3 1.5Zm4.98 0c-.72 0-1.31-.67-1.31-1.5S9.26 4.8 9.99 4.8c.72 0 1.31.67 1.3 1.5 0 .83-.58 1.5-1.3 1.5Z" fill="currentColor"/>
-    </svg>
-  </a>
-  <a href="#" class="social-btn" title="GitHub" style="font-size:12px;font-weight:700;">gh</a>
+  <a href="https://github.com/sweet-potato-cat/Donut-worry" class="social-btn" title="GitHub" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;">gh</a>
 </div>
 
 <!-- ── BELOW FOLD – features detail teaser ── -->
@@ -772,12 +765,55 @@ footer {
     <span class="footer-name">Donut Worry!</span>
   </a>
   <div class="footer-links">
-    <a href="#" class="footer-link">Privacy</a>
-    <a href="#" class="footer-link">FAQs</a>
-    <a href="#" class="footer-link">GitHub</a>
+    <a href="#faq" class="footer-link">FAQs</a>
+    <a href="https://github.com/sweet-potato-cat/Donut-worry" class="footer-link" target="_blank" rel="noopener">GitHub</a>
   </div>
   <span class="footer-copy">No data collected by Donut Worry!</span>
 </footer>
+
+<script>
+(function () {
+  var REPO = 'sweet-potato-cat/Donut-worry';
+  var FALLBACK_URL = 'https://github.com/' + REPO + '/releases/latest';
+  var btn = document.getElementById('dl-primary-btn');
+  var icon = document.getElementById('dl-primary-icon');
+  var label = document.getElementById('dl-primary-label');
+  var versionBadge = document.getElementById('nav-version');
+
+  var ua = navigator.userAgent;
+  var isMac = /Mac/.test(ua) && !/iPhone|iPad|iPod/.test(ua);
+  var isWindows = /Win/.test(ua);
+
+  fetch('https://api.github.com/repos/' + REPO + '/releases/latest')
+    .then(function (res) {
+      if (!res.ok) throw new Error('release fetch failed: ' + res.status);
+      return res.json();
+    })
+    .then(function (release) {
+      var assets = release.assets || [];
+      var exeAsset = assets.filter(function (a) { return /\.exe$/i.test(a.name); })[0];
+      var dmgAsset = assets.filter(function (a) { return /\.dmg$/i.test(a.name); })[0];
+
+      if (versionBadge && release.tag_name) versionBadge.textContent = release.tag_name;
+      if (!btn) return;
+
+      if (isMac && dmgAsset) {
+        btn.href = dmgAsset.browser_download_url;
+        if (icon) icon.textContent = '🍎';
+        if (label) label.textContent = 'Download for Mac';
+      } else if (isWindows && exeAsset) {
+        btn.href = exeAsset.browser_download_url;
+        if (icon) icon.textContent = '🪟';
+        if (label) label.textContent = 'Download for Windows';
+      } else {
+        btn.href = FALLBACK_URL;
+      }
+    })
+    .catch(function () {
+      if (btn) btn.href = FALLBACK_URL;
+    });
+})();
+</script>
 
 </body>
 </html>

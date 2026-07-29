@@ -146,6 +146,14 @@ const handlers = {
     return settings.resetMainHotkey()
   },
 
+  'settings:getLoginItem': async () => {
+    return settings.getLoginItemStatus()
+  },
+
+  'settings:setLoginItem': async ({ enabled }) => {
+    return settings.setLoginItemStatus(enabled)
+  },
+
   'timetable:list': async () => {
     return settings.listTimetable()
   },

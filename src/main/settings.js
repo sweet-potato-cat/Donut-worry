@@ -65,6 +65,15 @@ export function resetMainHotkey() {
   return load().mainHotkey
 }
 
+export function getLoginItemStatus() {
+  return { openAtLogin: app.getLoginItemSettings().openAtLogin }
+}
+
+export function setLoginItemStatus(enabled) {
+  app.setLoginItemSettings({ openAtLogin: !!enabled })
+  return getLoginItemStatus()
+}
+
 export function listTimetable() {
   return load().timetable
 }

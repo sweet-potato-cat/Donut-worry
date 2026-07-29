@@ -36,6 +36,8 @@ const CHANNELS = [
   'settings:get',
   'settings:setMainHotkey',
   'settings:resetMainHotkey',
+  'settings:getLoginItem',
+  'settings:setLoginItem',
   'timetable:list',
   'timetable:add',
   'timetable:remove',

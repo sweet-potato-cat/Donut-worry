@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { BiKey, BiCalendarWeek, BiCalculator, BiLock } from 'react-icons/bi'
+import { BiCog, BiKey, BiCalendarWeek, BiCalculator, BiLock } from 'react-icons/bi'
+import GeneralTab from './GeneralTab'
 import ShortcutsTab from './ShortcutsTab'
 import TimetableTab from './TimetableTab'
 import GradingCalculatorTab from './GradingCalculatorTab'
@@ -12,6 +13,7 @@ const TEXT = '#f2f2f3'
 const MUTED = '#b09098'
 
 const TABS = [
+  { id: 'general', label: '일반', icon: BiCog, Component: GeneralTab },
   { id: 'shortcuts', label: '단축키', icon: BiKey, Component: ShortcutsTab },
   { id: 'timetable', label: '시간표', icon: BiCalendarWeek, Component: TimetableTab },
   { id: 'grading', label: '성적계산기', icon: BiCalculator, Component: GradingCalculatorTab },
@@ -19,7 +21,7 @@ const TABS = [
 ]
 
 export default function Preferences() {
-  const [activeTab, setActiveTab] = useState('shortcuts')
+  const [activeTab, setActiveTab] = useState('general')
   const ActiveComponent = TABS.find((tab) => tab.id === activeTab)?.Component
 
   return (

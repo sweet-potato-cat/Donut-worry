@@ -54,6 +54,15 @@ function createWindow() {
     return { action: 'deny' }
   })
 
+  // Cmd+,는 다른 앱들도 관용적으로 쓰는 단축키이므로, 도넛/페이지 창이 떠 있는
+  // 동안에만 전역으로 가로채고 평소에는 놓아준다
+  mainWindow.on('show', () => {
+    globalShortcut.register('CommandOrControl+,', createPreferencesWindow)
+  })
+  mainWindow.on('hide', () => {
+    globalShortcut.unregister('CommandOrControl+,')
+  })
+
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -302,6 +311,13 @@ function registerWindowIpc() {
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.donut-worry')
 
+  // 메뉴바 트레이 앱이므로 Dock에는 아이콘을 띄우지 않는다
+  // (패키징된 앱은 electron-builder.yml의 LSUIElement로도 처리되지만,
+  // 개발 모드에서 실행되는 Electron.app 자체에는 적용되지 않으므로 여기서도 명시적으로 숨김)
+  if (process.platform === 'darwin') {
+    app.dock?.hide()
+  }
+
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
@@ -312,7 +328,6 @@ app.whenReady().then(() => {
   createTray()
   registerHoldListener()
   startScheduler()
-  globalShortcut.register('CommandOrControl+,', createPreferencesWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

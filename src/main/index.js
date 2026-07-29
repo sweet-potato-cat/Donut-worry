@@ -1,4 +1,15 @@
-import { app, shell, BrowserWindow, globalShortcut, screen, ipcMain, dialog } from 'electron'
+import {
+  app,
+  shell,
+  BrowserWindow,
+  globalShortcut,
+  screen,
+  ipcMain,
+  dialog,
+  Tray,
+  Menu,
+  nativeImage
+} from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { uIOhook, UiohookKey } from 'uiohook-napi'
@@ -9,6 +20,8 @@ import { startScheduler, stopScheduler } from './scheduler.js'
 
 let mainWindow = null
 let preferencesWindow = null
+let tray = null
+let donutEnabled = true
 
 const DONUT_SIZE = 500
 
@@ -110,6 +123,8 @@ function positionWindowAtCursor() {
 
 function showDonutWindow() {
   if (!mainWindow) return
+  // 페이지를 보다가 다시 호출된 경우 아래에서 꺼둔 alwaysOnTop을 팝업 모드로 복귀
+  mainWindow.setAlwaysOnTop(true)
   mainWindow.setSize(DONUT_SIZE, DONUT_SIZE)
   positionWindowAtCursor()
   // 창을 보이기 전에 렌더러 상태부터 리셋시켜, 숨겨져 있던 동안 남아있던
@@ -127,10 +142,55 @@ let subDonutHeldIndex = null
 
 function showSubDonutWindow(index) {
   if (!mainWindow) return
+  mainWindow.setAlwaysOnTop(true)
   mainWindow.setSize(DONUT_SIZE, DONUT_SIZE)
   positionWindowAtCursor()
   mainWindow.webContents.send('subdonut:open', { index, cursor: getCursorPointInWindow() })
   mainWindow.show()
+}
+
+// 메뉴바 아이콘에서 도넛 단축키 자체를 껐다 켰다 할 수 있게 함
+// (다른 앱과 단축키가 충돌하거나 잠깐 방해받고 싶지 않을 때 앱을 끄지 않고도 끌 수 있도록)
+function setDonutEnabled(enabled) {
+  donutEnabled = enabled
+  if (!enabled) {
+    // 끄는 순간 눌려 있던 조합/열려 있던 도넛 창 상태를 모두 정리
+    donutHeld = false
+    subDonutHeldIndex = null
+    heldKeys.clear()
+    hideDonutWindow()
+  }
+}
+
+function buildTrayMenu() {
+  return Menu.buildFromTemplate([
+    {
+      label: '도넛 단축키 사용',
+      type: 'checkbox',
+      checked: donutEnabled,
+      click: () => setDonutEnabled(!donutEnabled)
+    },
+    { type: 'separator' },
+    { label: '환경설정...', click: () => createPreferencesWindow() },
+    { type: 'separator' },
+    { label: '종료', click: () => app.quit() }
+  ])
+}
+
+// 패키징된 앱에서는 resources가 app.asar 밖에 실제 파일로 존재하고,
+// 개발 중에는 프로젝트 소스를 그대로 가리킨다 (courses.js의 resolveScraperEntry와 동일한 패턴)
+function resolveTrayIconPath() {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'icon.png')
+    : join(app.getAppPath(), 'resources', 'icon.png')
+}
+
+function createTray() {
+  const icon = nativeImage.createFromPath(resolveTrayIconPath()).resize({ width: 18, height: 18 })
+  tray = new Tray(icon)
+  tray.setToolTip('Donut Worry')
+  tray.on('click', () => tray.popUpContextMenu(buildTrayMenu()))
+  tray.on('right-click', () => tray.popUpContextMenu(buildTrayMenu()))
 }
 
 // 우측 Ctrl/Alt/Cmd도 좌측과 동일하게 취급 (사용자가 어느 쪽을 누르든 조합이 성립하도록)
@@ -176,6 +236,7 @@ function isHoldComboActive() {
 
 function registerHoldListener() {
   uIOhook.on('keydown', (e) => {
+    if (!donutEnabled) return
     heldKeys.add(normalizeKeycode(e.keycode))
 
     if (isHoldComboActive() && !donutHeld) {
@@ -193,6 +254,7 @@ function registerHoldListener() {
   })
 
   uIOhook.on('keyup', (e) => {
+    if (!donutEnabled) return
     heldKeys.delete(normalizeKeycode(e.keycode))
 
     if (donutHeld && !isHoldComboActive()) {
@@ -227,6 +289,10 @@ function registerWindowIpc() {
 
   ipcMain.on('window:show-page', () => {
     if (!mainWindow) return
+    // 페이지는 도넛 팝업과 달리 계속 참고하며 다른 창과 오가는 실제 콘텐츠이므로
+    // 항상 위에 떠 있으면 안 됨 (다시 도넛을 열 때 showDonutWindow/showSubDonutWindow가
+    // alwaysOnTop을 되돌려놓는다)
+    mainWindow.setAlwaysOnTop(false)
     const { width, height } = getPageSize()
     mainWindow.setSize(width, height)
     mainWindow.center()
@@ -243,6 +309,7 @@ app.whenReady().then(() => {
   registerIpcHandlers()
   registerWindowIpc()
   createWindow()
+  createTray()
   registerHoldListener()
   startScheduler()
   globalShortcut.register('CommandOrControl+,', createPreferencesWindow)

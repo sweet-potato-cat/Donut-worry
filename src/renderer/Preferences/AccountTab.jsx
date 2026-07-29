@@ -109,8 +109,18 @@ export default function AccountTab({ accent, border, muted }) {
           </button>
         </div>
 
-        <div style={{ fontSize: 12, color: message?.type === 'error' ? '#ff8a8a' : muted }}>
-          {message?.text ?? (status?.hasCredentials ? `저장됨: ${status.id}` : '저장된 계정 없음')}
+        <div
+          style={{
+            fontSize: 12,
+            color: message?.type === 'error' || status?.corrupted ? '#ff8a8a' : muted
+          }}
+        >
+          {message?.text ??
+            (status?.hasCredentials
+              ? `저장됨: ${status.id}`
+              : status?.corrupted
+                ? '저장된 계정 정보를 읽을 수 없어요. 다시 저장해주세요'
+                : '저장된 계정 없음')}
         </div>
       </div>
     </div>

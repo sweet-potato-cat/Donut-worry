@@ -5,13 +5,10 @@ import AssignmentList from './AssignmentList'
 
 const COLOR = '#fea443'
 
-export default function AssignmentSubDonut({ initialCursor, openSeq }) {
-  const [courses, setCourses] = useState([])
-  const [loading, setLoading] = useState(true)
+export default function AssignmentSubDonut({ courses, initialCursor, openSeq }) {
   const [selectedCourse, setSelectedCourse] = useState(null)
   const [prevOpenSeq, setPrevOpenSeq] = useState(openSeq)
   const hoveredIndexRef = useRef(null)
-  const pendingConfirmRef = useRef(false)
 
   // Sub 도넛을 다시 열 때마다(과목 목록은 그대로 두고) 이전 드릴다운 상태만 초기화
   // (useEffect 대신 렌더 중 조정: openSeq가 바뀐 프레임에 바로 반영되어 깜빡임 없음)
@@ -21,65 +18,39 @@ export default function AssignmentSubDonut({ initialCursor, openSeq }) {
     setSelectedCourse(null)
   }
 
-  useEffect(() => {
-    let cancelled = false
-    window.electron?.ipcRenderer
-      .invoke('assignment:listCourses')
-      .then((list) => {
-        if (!cancelled) setCourses(list ?? [])
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   // 단축키를 놓는 순간 → 마우스가 올라가 있던 과목으로 확정 진입
-  // (courses가 아직 로딩 중이면 SubDonut 섹터 자체가 렌더되지 않아 호버가
-  //  발생할 기회가 없었으므로, 즉시 hide하지 않고 로딩이 끝날 때까지 판정을
-  //  미룬다. 로딩이 끝나면 SubDonut이 마운트되며 커서 위치 기반 초기 호버가
-  //  hoveredIndexRef에 반영된 뒤 아래 두 번째 effect에서 판정을 이어간다.)
-  // selectedCourse가 이미 세팅된 상태(=드릴다운 화면에서 마우스만 조작 중인
-  // 상태)라면 이 이벤트는 무시한다. 섹터 화면이 아닌
-  // 동안 단축키를 늦게 떼서 도착한 confirm이 오래된 hoveredIndexRef 값으로
-  // 화면을 다시 바꾸거나 창을 hide시키는 것을 막기 위함
-  const confirmSelection = () => {
-    if (selectedCourse) return
-    const index = hoveredIndexRef.current
-    if (index !== null && courses[index]) {
-      setSelectedCourse(courses[index].name)
-    } else {
-      window.electron?.ipcRenderer.send('window:hide')
-    }
-  }
-
+  // courses는 App에서 미리 불러와 둔 것을 그대로 받으므로(로딩을 기다리는 별도
+  // 분기 없이) Main 도넛과 동일하게 곧바로 판정한다. selectedCourse가 이미
+  // 세팅된 상태(드릴다운 화면에서 마우스만 조작 중)라면 이 이벤트는 무시한다
   useEffect(() => {
     const handler = () => {
-      if (loading) {
-        pendingConfirmRef.current = true
+      if (selectedCourse) return
+
+      if (!courses) {
+        window.electron?.ipcRenderer.send('window:hide')
         return
       }
-      confirmSelection()
+
+      const index = hoveredIndexRef.current
+      if (index !== null && courses[index]) {
+        setSelectedCourse(courses[index].name)
+      } else {
+        window.electron?.ipcRenderer.send('window:hide')
+      }
     }
+    // Vite HMR로 이 컴포넌트가 재실행될 때 이전 클로저를 든 리스너가 정리되지
+    // 않고 남아 쌓이는 경우가 있어(개발 중 계속 편집하면서 확인됨), 새로 등록하기
+    // 전에 같은 채널의 리스너를 모두 지워 중복 호출을 방지한다
+    window.electron?.ipcRenderer.removeAllListeners('subdonut:confirm')
     window.electron?.ipcRenderer.on('subdonut:confirm', handler)
     return () => window.electron?.ipcRenderer.removeListener('subdonut:confirm', handler)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courses, loading, selectedCourse])
-
-  useEffect(() => {
-    if (loading || !pendingConfirmRef.current) return
-    pendingConfirmRef.current = false
-    confirmSelection()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, courses])
+  }, [courses, selectedCourse])
 
   if (selectedCourse) {
     return <AssignmentList courseName={selectedCourse} color={COLOR} />
   }
 
-  if (loading) {
+  if (!courses) {
     return (
       <div style={{ ...centerStyle, color: '#bbb' }}>
         <BiLoaderAlt size={28} style={{ animation: 'spin 0.8s linear infinite' }} />

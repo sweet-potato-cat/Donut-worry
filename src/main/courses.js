@@ -22,10 +22,61 @@ const SNAPSHOT_JSON_FILES = [
   'weekly-learning-downloaded-materials.json'
 ]
 
+// 개발 중에는 <프로젝트 루트>/scraper-output이 실제 결과가 쌓이는 userData 폴더를
+// 가리키는 심링크가 되게 해서, 매번 ~/Library/Application Support까지 안 가고
+// 프로젝트 폴더에서 바로 결과를 확인할 수 있게 한다. 패키징된 앱에는 프로젝트
+// 폴더 자체가 없으므로 개발 모드에서만 한다. 기존에 진짜 폴더가 있었다면
+// 지우지 않고 타임스탬프를 붙여 백업해둔다
+function ensureDevOutputSymlink() {
+  if (app.isPackaged) return
+
+  const projectOutputPath = path.join(app.getAppPath(), 'scraper-output')
+
+  try {
+    const stat = fs.lstatSync(projectOutputPath)
+    if (stat.isSymbolicLink()) {
+      if (fs.readlinkSync(projectOutputPath) === OUTPUT_ROOT) return
+      fs.unlinkSync(projectOutputPath)
+    } else {
+      const backupPath = `${projectOutputPath}.bak-${Date.now()}`
+      fs.renameSync(projectOutputPath, backupPath)
+      console.log(`[courses] existing scraper-output/ moved to ${backupPath}`)
+    }
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.error(`[courses] failed to prepare dev scraper-output symlink: ${err.message}`)
+      return
+    }
+  }
+
+  fs.mkdirSync(OUTPUT_ROOT, { recursive: true })
+  fs.symlinkSync(OUTPUT_ROOT, projectOutputPath, 'dir')
+  console.log(`[courses] scraper-output/ symlinked to ${OUTPUT_ROOT}`)
+}
+
+ensureDevOutputSymlink()
+
 let syncChild = null
 let syncTimeout = null
-let syncState = { running: false, lastResult: null, lastError: null, lastRunAt: null }
+let syncState = {
+  running: false,
+  category: null,
+  lastResult: null,
+  lastError: null,
+  lastRunAt: null
+}
 const syncListeners = new Set()
+
+// 메인 도넛 4개 메뉴(강의자료/과제/동영상/공지) 각각을 개별로 새로고침할 수 있게
+// 스크래퍼 CLI 플래그로 매핑. 강의자료/동영상은 같은 주차학습 스캔에서 함께
+// 나오는 데이터라 스캔 자체는 공유하고, 동영상만 볼 때는 자료 다운로드는 생략한다
+const CATEGORY_ARGS = {
+  all: ['--download'],
+  notices: ['--notices-only'],
+  assignments: ['--assignments-only'],
+  materials: ['--materials-only', '--download'],
+  videos: ['--videos-only']
+}
 
 function isInsideCoursesRoot(target) {
   const rel = path.relative(COURSES_ROOT, target)
@@ -164,12 +215,14 @@ function resolvePlaywrightBrowsersPath() {
   return path.join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'playwright-browsers')
 }
 
-export function startSync() {
+export function startSync(category = 'all') {
   if (syncState.running) return { ...syncState }
 
+  const categoryArgs = CATEGORY_ARGS[category] ?? CATEGORY_ARGS.all
+
   const beforeSnapshot = createSyncSnapshot()
-  syncState = { running: true, lastResult: null, lastError: null, lastRunAt: Date.now() }
-  broadcastSyncEvent({ type: 'start' })
+  syncState = { running: true, category, lastResult: null, lastError: null, lastRunAt: Date.now() }
+  broadcastSyncEvent({ type: 'start', category })
 
   let timedOut = false
 
@@ -189,7 +242,7 @@ export function startSync() {
 
   syncChild = spawn(
     process.execPath,
-    [resolveScraperEntry(), '--live', '--download', '--headless'],
+    [resolveScraperEntry(), '--live', ...categoryArgs, '--headless'],
     {
       cwd: app.getPath('userData'),
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -216,11 +269,12 @@ export function startSync() {
     syncChild = null
     syncState = {
       running: false,
+      category,
       lastResult: 'error',
       lastError: err.message,
       lastRunAt: syncState.lastRunAt
     }
-    broadcastSyncEvent({ type: 'done', success: false, error: err.message })
+    broadcastSyncEvent({ type: 'done', category, success: false, error: err.message })
   })
 
   syncChild.on('close', (code) => {
@@ -233,6 +287,7 @@ export function startSync() {
 
     syncState = {
       running: false,
+      category,
       lastResult: success ? 'success' : 'error',
       lastError: success
         ? null
@@ -241,7 +296,14 @@ export function startSync() {
           : `스크래퍼가 종료 코드 ${code}로 실패했습니다`,
       lastRunAt: syncState.lastRunAt
     }
-    broadcastSyncEvent({ type: 'done', success, changed, message, error: syncState.lastError })
+    broadcastSyncEvent({
+      type: 'done',
+      category,
+      success,
+      changed,
+      message,
+      error: syncState.lastError
+    })
   })
 
   return { ...syncState }

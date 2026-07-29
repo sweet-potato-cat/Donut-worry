@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import {
-  BiChevronDown,
-  BiChevronUp,
-  BiLoaderAlt,
-  BiRefresh,
-  BiCheckCircle,
-  BiErrorCircle,
-  BiSolidCaretRightCircle
-} from 'react-icons/bi'
+import { BiChevronDown, BiChevronUp, BiLoaderAlt, BiSolidCaretRightCircle } from 'react-icons/bi'
+import SyncButton from '../common/SyncButton'
 
 const TITLE_COLOR = '#3a9fe0'
 const ACCENT = '#cdeaff'
@@ -23,8 +16,6 @@ export default function VideoPage() {
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(() => new Set())
   const [itemsByCourse, setItemsByCourse] = useState({})
-  const [syncing, setSyncing] = useState(false)
-  const [syncMessage, setSyncMessage] = useState(null)
   const expandedRef = useRef(expanded)
   useEffect(() => {
     expandedRef.current = expanded
@@ -48,39 +39,10 @@ export default function VideoPage() {
     Promise.resolve(fetchCourses()).finally(() => {
       if (!cancelled) setLoading(false)
     })
-
-    window.electron?.ipcRenderer.invoke('course:syncStatus').then((state) => {
-      if (!cancelled) setSyncing(!!state?.running)
-    })
-
-    const handler = (_e, event) => {
-      if (event.type === 'start') {
-        setSyncing(true)
-        setSyncMessage(null)
-      } else if (event.type === 'done') {
-        setSyncing(false)
-        if (event.success) {
-          setSyncMessage({ type: 'success', text: event.message ?? '새로고침 완료' })
-          fetchCourses().then(() => {
-            expandedRef.current.forEach((name) => loadItems(name))
-          })
-        } else {
-          setSyncMessage({ type: 'error', text: event.error ?? '새로고침에 실패했습니다' })
-        }
-      }
-    }
-    window.electron?.ipcRenderer.on('course:syncEvent', handler)
     return () => {
       cancelled = true
-      window.electron?.ipcRenderer.removeListener('course:syncEvent', handler)
     }
   }, [])
-
-  useEffect(() => {
-    if (!syncMessage) return
-    const timer = setTimeout(() => setSyncMessage(null), 4000)
-    return () => clearTimeout(timer)
-  }, [syncMessage])
 
   const toggleCourse = (courseName) => {
     setExpanded((prev) => {
@@ -97,11 +59,6 @@ export default function VideoPage() {
 
   const openVideo = (url) => {
     window.electron?.ipcRenderer.invoke('video:open', { url })
-  }
-
-  const handleSync = () => {
-    if (syncing) return
-    window.electron?.ipcRenderer.invoke('course:sync')
   }
 
   return (
@@ -222,50 +179,16 @@ export default function VideoPage() {
         )}
       </div>
 
-      <div
-        style={{
-          position: 'fixed',
-          right: 24,
-          bottom: 20,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-end',
-          gap: 6
+      <SyncButton
+        category="videos"
+        label="동영상"
+        accentColor={TITLE_COLOR}
+        onRefreshed={() => {
+          fetchCourses().then(() => {
+            expandedRef.current.forEach((name) => loadItems(name))
+          })
         }}
-      >
-        {syncing && (
-          <div style={{ fontSize: 11, color: '#999' }}>새 창에서 로그인이 필요할 수 있어요</div>
-        )}
-        {syncMessage && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              fontSize: 12,
-              color: syncMessage.type === 'success' ? '#4caf50' : '#e05263'
-            }}
-          >
-            {syncMessage.type === 'success' ? (
-              <BiCheckCircle size={14} />
-            ) : (
-              <BiErrorCircle size={14} />
-            )}
-            {syncMessage.text}
-          </div>
-        )}
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          style={syncButtonStyle(syncing)}
-          title="새로고침"
-        >
-          <BiRefresh
-            size={16}
-            style={syncing ? { animation: 'spin 0.8s linear infinite' } : undefined}
-          />
-        </button>
-      </div>
+      />
 
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
     </div>
@@ -319,22 +242,6 @@ const badgeStyle = {
   background: '#fff',
   borderRadius: 999,
   padding: '2px 8px'
-}
-
-function syncButtonStyle(syncing) {
-  return {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 36,
-    height: 36,
-    borderRadius: '50%',
-    border: 'none',
-    background: syncing ? '#eee' : TITLE_COLOR,
-    color: syncing ? '#999' : '#fff',
-    cursor: syncing ? 'default' : 'pointer',
-    boxShadow: syncing ? 'none' : '0 4px 12px rgba(58,159,224,0.4)'
-  }
 }
 
 const itemRowStyle = {

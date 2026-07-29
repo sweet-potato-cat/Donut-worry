@@ -5,9 +5,14 @@
 
 import fs from 'fs'
 import path from 'path'
-import { shell } from 'electron'
+import { app, shell } from 'electron'
 
-const VIDEOS_PATH = path.resolve('scraper-output', 'weekly-learning-videos.json')
+// process.cwd() 기준 상대 경로였던 걸 courses.js와 같은 절대 경로 기준으로 맞춤
+const VIDEOS_PATH = path.join(
+  app.getPath('userData'),
+  'scraper-output',
+  'weekly-learning-videos.json'
+)
 
 function readVideos() {
   if (!fs.existsSync(VIDEOS_PATH)) return []

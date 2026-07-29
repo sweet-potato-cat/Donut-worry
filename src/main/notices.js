@@ -5,9 +5,10 @@
 
 import fs from 'fs'
 import path from 'path'
-import { shell } from 'electron'
+import { app, shell } from 'electron'
 
-const NOTICES_PATH = path.resolve('scraper-output', 'notices.json')
+// process.cwd() 기준 상대 경로였던 걸 courses.js와 같은 절대 경로 기준으로 맞춤
+const NOTICES_PATH = path.join(app.getPath('userData'), 'scraper-output', 'notices.json')
 
 // 공지 제목/본문에 아래 키워드가 하나라도 있으면 해당 유형 목록에 포함시킨다.
 // (하나의 공지가 여러 유형에 동시에 속할 수 있음)

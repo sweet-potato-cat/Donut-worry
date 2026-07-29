@@ -44,8 +44,8 @@ const handlers = {
     return { success: true }
   },
 
-  'course:sync': async () => {
-    return courses.startSync()
+  'course:sync': async ({ category } = {}) => {
+    return courses.startSync(category)
   },
 
   'course:syncStatus': async () => {

@@ -10,7 +10,11 @@ function parseCourseId(url) {
 }
 
 async function collectCoursesFromDashboard(page) {
-  await page.goto(dashboardUrl, { waitUntil: 'networkidle' })
+  await page.goto(dashboardUrl, { waitUntil: 'domcontentloaded' })
+  // 대시보드는 알림 등 백그라운드 요청이 계속 떠 있어 networkidle 자체가 잘 안
+  // 걸린다(실제로 30초 타임아웃이 재현됨). 짧게만 시도해보고 안 되면 그냥
+  // 넘어간 뒤, 아래 explicit wait로 클라이언트 렌더링 시간을 벌충한다
+  await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})
   await page.waitForTimeout(3000)
 
   const apiCourses = await collectCanvasCoursesApi(page)

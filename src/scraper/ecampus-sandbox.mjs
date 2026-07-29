@@ -43,7 +43,7 @@ async function launchAuthenticatedContext(preferHeadless) {
     return { browserContext, page }
   }
 
-  if (preferHeadless && (await attemptAutoLogin(page, dashboardUrl))) {
+  if (preferHeadless && (await attemptAutoLogin(page))) {
     console.log('Automatic login succeeded.')
     return { browserContext, page }
   }
@@ -53,6 +53,17 @@ async function launchAuthenticatedContext(preferHeadless) {
     await browserContext.close()
     browserContext = await chromium.launchPersistentContext(userDataDir, { headless: false })
     page = await browserContext.newPage()
+
+    await waitForCanvasLogin(page, dashboardUrl)
+
+    // 로그인 자체는 화면에 보이는 창에서 사람이 직접 했지만, 그 뒤로 이어지는
+    // 스크래핑/다운로드 작업까지 이 창을 계속 띄워둘 이유는 없다. 방금 로그인으로
+    // userDataDir에 저장된 세션을 그대로 물려받아 headless 컨텍스트를 다시 열고,
+    // 나머지 작업은 백그라운드에서 이어간다
+    await browserContext.close()
+    browserContext = await chromium.launchPersistentContext(userDataDir, { headless: true })
+    page = await browserContext.newPage()
+    return { browserContext, page }
   }
 
   await waitForCanvasLogin(page, dashboardUrl)
@@ -116,7 +127,11 @@ async function runLiveCollector() {
 
   await mkdir(outputRoot, { recursive: true })
 
-  if (!hasCliFlag('--notices-only') && !hasCliFlag('--grading-only')) {
+  // 강의자료/동영상은 아래쪽 주차학습 스캔에서만 나오는 데이터라, 그 둘만 볼 때는
+  // 과제/공지/성적비율 수집을 건너뛴다
+  const onlyWeeklyScan = hasCliFlag('--materials-only') || hasCliFlag('--videos-only')
+
+  if (!onlyWeeklyScan && !hasCliFlag('--notices-only') && !hasCliFlag('--grading-only')) {
     const { assignments, unsubmittedAssignments } = await collectAssignmentRecords(page, courses)
 
     await writeFile(assignmentsPath, JSON.stringify(assignments, null, 2))
@@ -129,7 +144,7 @@ async function runLiveCollector() {
     console.log(`Saved to ${unsubmittedAssignmentsPath}`)
   }
 
-  if (!hasCliFlag('--assignments-only') && !hasCliFlag('--grading-only')) {
+  if (!onlyWeeklyScan && !hasCliFlag('--assignments-only') && !hasCliFlag('--grading-only')) {
     const notices = await collectNoticeRecords(page, courses)
 
     await writeFile(noticesPath, JSON.stringify(notices, null, 2))
@@ -138,7 +153,7 @@ async function runLiveCollector() {
     console.log(`Saved to ${noticesPath}`)
   }
 
-  if (!hasCliFlag('--assignments-only') && !hasCliFlag('--notices-only')) {
+  if (!onlyWeeklyScan && !hasCliFlag('--assignments-only') && !hasCliFlag('--notices-only')) {
     const gradingWeights = await collectGradingWeightRecords(browserContext, courses)
 
     await writeFile(gradingWeightsPath, JSON.stringify(gradingWeights, null, 2))

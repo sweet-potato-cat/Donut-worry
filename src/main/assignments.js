@@ -5,9 +5,12 @@
 
 import fs from 'fs'
 import path from 'path'
-import { shell } from 'electron'
+import { app, shell } from 'electron'
 
-const ASSIGNMENTS_PATH = path.resolve('scraper-output', 'assignments.json')
+// process.cwd() 기준 상대 경로였던 걸 courses.js와 같은 절대 경로 기준으로
+// 맞춤(cwd는 앱이 어디서 실행됐느냐에 따라 달라져 패키징된 앱에서는 전혀 다른
+// 곳을 가리킬 수 있음 — 실제로 이 파일들은 courses.js가 쓰는 위치와 달랐다)
+const ASSIGNMENTS_PATH = path.join(app.getPath('userData'), 'scraper-output', 'assignments.json')
 
 function readAssignments() {
   if (!fs.existsSync(ASSIGNMENTS_PATH)) return []

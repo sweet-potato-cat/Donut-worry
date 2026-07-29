@@ -12,20 +12,32 @@ const CREDENTIALS_PATH = path.join(app.getPath('userData'), 'credentials.enc')
 
 function load() {
   if (!fs.existsSync(CREDENTIALS_PATH)) return null
-  if (!safeStorage.isEncryptionAvailable()) return null
+  if (!safeStorage.isEncryptionAvailable()) {
+    console.error('[credentials] safeStorage.isEncryptionAvailable() is false')
+    return null
+  }
 
   try {
     const encrypted = fs.readFileSync(CREDENTIALS_PATH)
     const decrypted = safeStorage.decryptString(encrypted)
     return JSON.parse(decrypted)
-  } catch {
+  } catch (err) {
+    // safeStorage는 macOS 키체인에 앱 서명 기준으로 키를 묶어두므로, 서명이
+    // 다른 빌드(예: 언사인드 개발 빌드 ↔ 패키징된 빌드)로 갈아타면 이전에 저장한
+    // credentials.enc를 더 이상 복호화하지 못한다. 이 경우 파일은 있지만 내용을
+    // 못 읽는 것이므로 "저장 안 함"과 구분해 사용자가 다시 저장하도록 안내한다
+    console.error(`[credentials] failed to decrypt credentials.enc: ${err.message}`)
     return null
   }
 }
 
 export function getCredentialsStatus() {
   const creds = load()
-  return { hasCredentials: !!creds, id: creds?.id ?? null }
+  return {
+    hasCredentials: !!creds,
+    id: creds?.id ?? null,
+    corrupted: !creds && fs.existsSync(CREDENTIALS_PATH)
+  }
 }
 
 // 평문 비밀번호가 담긴 자격증명. scraper 자식 프로세스로 넘길 때만 사용하고

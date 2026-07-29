@@ -1,4 +1,5 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import { dashboardUrl, outputRoot, weeklyMaterialTypes } from '../core/constants.mjs'
@@ -284,6 +285,30 @@ async function collectLinksWithFallback(page, sourceUrl, course) {
   }
 }
 
+// 교수가 다운로드 기간을 닫아버린 자료는 링크만 남아있고 파일도, 다운로드
+// 버튼도 없어 매번 새로고침할 때마다 새 탭을 열고 못 찾은 뒤 닫는 시간이
+// 그대로 낭비된다. 한 번 실패로 바로 영구 제외하면 일시적 네트워크 문제로
+// 우연히 한 번 실패한 것까지 영영 안 받게 될 수 있어, 연속 2회 실패해야
+// "확정 unresolved"로 등록해 이후엔 아예 열어보지도 않고 건너뛴다. 나중에
+// 교수가 기간을 다시 열면 이 파일(weekly-learning-unresolved.json)에서 해당
+// 항목을 지우거나 파일 전체를 지우면 다시 시도한다
+const MIN_FAILURES_BEFORE_SKIP = 2
+
+async function loadUnresolvedRecord(unresolvedMaterialsPath) {
+  const map = new Map()
+
+  try {
+    const raw = await readFile(unresolvedMaterialsPath, 'utf8')
+    for (const record of JSON.parse(raw)) {
+      if (record?.url) map.set(record.url, record)
+    }
+  } catch {
+    // 파일이 없거나 깨졌으면 빈 상태로 시작 (아래에서 새로 만들어짐)
+  }
+
+  return map
+}
+
 async function downloadWeeklyMaterials(page, browserContext, weeklyMaterialItems) {
   console.log(`Resolving ${weeklyMaterialItems.length} weekly material items...`)
 
@@ -291,15 +316,24 @@ async function downloadWeeklyMaterials(page, browserContext, weeklyMaterialItems
   const canvasModuleItemsPath = path.join(outputRoot, 'canvas-module-items.json')
   const resolvedMaterialsPath = path.join(outputRoot, 'weekly-learning-resolved-downloads.json')
   const downloadedMaterialsPath = path.join(outputRoot, 'weekly-learning-downloaded-materials.json')
+  const unresolvedMaterialsPath = path.join(outputRoot, 'weekly-learning-unresolved.json')
   const resolvedMaterials = []
   const downloadedMaterials = []
   const directoryFileCache = new Map()
+  const unresolvedRecord = await loadUnresolvedRecord(unresolvedMaterialsPath)
 
   await writeFile(canvasModuleItemsPath, JSON.stringify([...canvasModuleItems.values()], null, 2))
   console.log(`Saved Canvas module item metadata to ${canvasModuleItemsPath}`)
 
   for (const [index, item] of weeklyMaterialItems.entries()) {
     const itemLabel = `[${index + 1}/${weeklyMaterialItems.length}] ${item.courseName} - ${item.title}`
+    const unresolvedEntry = unresolvedRecord.get(item.url)
+
+    if (unresolvedEntry?.confirmed) {
+      console.log(`- skipped known-unresolved ${itemLabel}`)
+      continue
+    }
+
     const existingPath = await findExistingDownloadedFile(item, directoryFileCache)
 
     if (existingPath) {
@@ -332,7 +366,34 @@ async function downloadWeeklyMaterials(page, browserContext, weeklyMaterialItems
 
     if (!result) {
       console.log(`- unresolved ${itemLabel}`)
+
+      const failCount = (unresolvedEntry?.failCount ?? 0) + 1
+      const now = new Date().toISOString()
+
+      unresolvedRecord.set(item.url, {
+        url: item.url,
+        title: item.title,
+        courseName: item.courseName,
+        courseId: item.courseId,
+        failCount,
+        confirmed: failCount >= MIN_FAILURES_BEFORE_SKIP,
+        firstFailedAt: unresolvedEntry?.firstFailedAt ?? now,
+        lastFailedAt: now
+      })
+      await writeFile(
+        unresolvedMaterialsPath,
+        JSON.stringify([...unresolvedRecord.values()], null, 2)
+      )
       continue
+    }
+
+    // 이번엔 성공했으니(예전에 한 번 실패했던 기록이 있었다면) 지워서 다음에도
+    // 정상적으로 다시 시도되게 한다
+    if (unresolvedRecord.delete(item.url)) {
+      await writeFile(
+        unresolvedMaterialsPath,
+        JSON.stringify([...unresolvedRecord.values()], null, 2)
+      )
     }
 
     if (result.kind === 'downloaded') {
@@ -355,7 +416,12 @@ async function downloadWeeklyMaterials(page, browserContext, weeklyMaterialItems
   console.log(`Downloaded ${downloadedMaterials.length} files from embedded viewers.`)
   console.log(`Saved download records to ${downloadedMaterialsPath}`)
 
-  await downloadMaterials(browserContext, resolvedMaterials)
+  await downloadMaterials(
+    browserContext,
+    resolvedMaterials,
+    downloadedMaterials,
+    downloadedMaterialsPath
+  )
 }
 
 async function processMaterialDownload(page, item, canvasModuleItem) {
@@ -913,11 +979,31 @@ function chooseBestDownloadCandidate(candidates) {
   )
 }
 
-async function downloadMaterials(browserContext, materials) {
+// resolvedMaterials(직접 URL로 받는 파일들)는 지금까지 매번 무조건
+// browserContext.request.get()으로 다시 받아썼다 — 이미 받아둔 파일이어도
+// 확인 없이 재다운로드/덮어쓰기했다는 뜻. createDownloadedFilePath로 나오는
+// 저장 경로가 courseName/courseId/title로부터 결정적으로 정해지므로, 그 경로에
+// 파일이 이미 있으면 새로 받지 않고 건너뛴다(기록 문서에도 남겨 두 다운로드
+// 경로의 "이미 받음" 판정을 하나로 통일한다)
+async function downloadMaterials(
+  browserContext,
+  materials,
+  downloadedMaterials = [],
+  downloadedMaterialsPath = null
+) {
   console.log(`Downloading ${materials.length} files...`)
 
   for (const material of materials) {
     const targetPath = createDownloadedFilePath(material)
+
+    if (existsSync(targetPath)) {
+      console.log(`- skipped existing ${material.title}`)
+      if (downloadedMaterialsPath) {
+        downloadedMaterials.push({ ...material, savedPath: targetPath, skipped: true })
+        await writeFile(downloadedMaterialsPath, JSON.stringify(downloadedMaterials, null, 2))
+      }
+      continue
+    }
 
     await mkdir(path.dirname(targetPath), { recursive: true })
 
@@ -930,6 +1016,11 @@ async function downloadMaterials(browserContext, materials) {
 
     await writeFile(targetPath, await response.body())
     console.log(`- saved ${targetPath}`)
+
+    if (downloadedMaterialsPath) {
+      downloadedMaterials.push({ ...material, savedPath: targetPath })
+      await writeFile(downloadedMaterialsPath, JSON.stringify(downloadedMaterials, null, 2))
+    }
   }
 }
 
